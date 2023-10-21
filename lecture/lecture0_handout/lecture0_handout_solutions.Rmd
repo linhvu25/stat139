@@ -1,0 +1,243 @@
+---
+title: "Introduction to R"
+author: "Lecture 0 Handout"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in
+
+header-includes:  
+  - \usepackage{xcolor}  
+  
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+    
+---
+
+\begin{small}
+	
+	\textbf{Topics}
+	\begin{itemize}
+	  \item R, RStudio
+	  \item Data Collection, Data Wrangling, and Exploratory Data Analysis
+	  \item Hypothesis Testing and Confidence Interval Review
+	\end{itemize}
+	
+\end{small}
+
+The material in this lab corresponds to Lecture 0 notes.
+
+\vspace{0.5cm}
+
+Be sure to fill out the following survey (5 questions) before continuing in this lab:
+
+**\url{https://tinyurl.com/y45j539o}**
+
+A survey was conducted of Stat 139 students and measured 5 variables (responses will be saved as 'stat139survey.csv'):
+
+- heartrate: beats per minute
+- exercise: the number of hours of vigorous exercise in a typical week
+- coffee: an indicator variable measuring whether respondent drank coffee that day
+- gender: male, female, non-binary, or other
+- class: freshman, sophomore, junior, senior, grad, or other
+
+
+#### Question 1.
+a) We are mainly interested in measuring heartrate from this survey. Perform a little exploratory data analysis (EDA) on this variable.  Provide a basic visual and calculate summary statistics. 
+
+```{r}
+#read in the data
+
+#this is the older data 
+#surveydata = read.csv("./data/stat139_survey.csv")
+
+#this is the new data; let's use this
+surveydata = read.csv("./data/stat139_survey_2023.csv")
+
+dim(surveydata)  #83 people responded
+
+names(surveydata) #yuck...let's change these...
+names(surveydata) = c("timestamp","score","heartrate","exercise",
+                      "coffee", "gender","classyear")
+
+# let's calculate some summary statistics and provide a visual summary using a histogram
+summary(surveydata$heartrate)
+
+hist(surveydata$heartrate, col="maroon", breaks=50)
+```
+
+\color{blue}
+
+Ok, we have an extreme outlier...let's take a closer look
+
+```{r}
+
+surveydata[which(surveydata$heartrate > 200),] #let's drop this observation - not simply because it's an outlier with a heartrate of 250 (think very hard before you do this!), but the exercise value of -2 makes the observation suspect. Nice try.
+
+surveydata <- surveydata[which(surveydata$heartrate < 200),]
+
+```  
+
+\color{blue}
+
+Let's do a little more cleaning
+
+```{r}
+str(surveydata) #note that exercise is character variable
+table(surveydata$exercise) #someone put "4-6"; let's recode this as 5
+surveydata[which(surveydata$exercise == "4-6"), "exercise"] <- "5"
+surveydata$exercise <- as.numeric(surveydata$exercise)
+
+```
+
+
+
+Recall the classic formula for the confidence interval for a population mean: 
+  
+  $$ \bar{x}\pm t^*\left(\frac{s}{\sqrt{n}}\right)$$
+  
+  b) Use this data set to provide a 95\% confidence interval for the true mean heartrate of all Harvard students. 
+
+```{r}
+# calculate sample statistics: sample size, sample mean, and sample sd
+xbar = mean(surveydata$heartrate)
+s = sd(surveydata$heartrate)
+n = length(surveydata$heartrate) #no NAs, so good to use `length` instead of counting the non-NAs
+
+# pull off the correct quantile from the t-distribution
+# qt(p, df)
+t.star = qt(0.975,df=n-1)
+
+# calculate the appropriate confidence interval
+lb = xbar - t.star*s/sqrt(n)
+ub = xbar + t.star*s/sqrt(n) 
+
+lb; ub #we can print the CI like this...but someone asked if we could do something nicer
+
+#How about this:
+sprintf("Our 95%% CI is [%.2f, %.2f]", lb, ub)
+
+#you can also get the CI from the t.test() function (they are the same)
+t.test(surveydata$heartrate)
+
+```  
+
+  c) Interpret the confidence interval you calculated in the previous part.
+
+
+\color{blue}
+
+We are 95% confident that the true mean heartrate of the population of Harvard students is between 65.40 and 69.55 beats per minute. Note that our hand calculations match the results of the `t.test` command.
+
+\color{black}
+
+  d) The true mean resting heartrate for adults in the US is reported to be 70 beats per minute.  How does the calculated confidence interval compare to the US population?  What can you conclude?
+
+\color{blue}
+
+Our calculated interval does not include the value 70 (though it is very close to the upper bound), so we conclude it is not a reasonable value for the population we sampled from.  In a hypothesis test, we would reject the null hypothesis of $H_0: \mu = 70$.
+
+\color{black}
+
+  e) What assumptions are needed for the confidence interval to be exact?  To be approximately correct?
+
+\color{blue}
+
+To be an exact confidence interval, we would need to rely on the assumptions that are observations are sampled independently from a population that is truly normally distributed (with the same mean and variance).  To be approximately correct, we need to rely on the central limit theorem so that $\bar{X}$ is approximately normal and also $S^2$ is approximately $\chi^2$.  More on this in future lectures.
+
+\color{black}
+
+
+
+  f) Do you trust the inferences above?  Why or why not?
+
+\color{blue}
+
+Not at all.  The histogram is reasonably symmetric enough, thus the CLT is likely to apply, so the formula is reasonable.  However, the assumption that our data are representative of the population of Harvard studnets (or the general population) is poor at best.  There is no reason to believe that students that decide to come to Lecture 0 of Stat 139 are representative of all Harvard students, or even all students enrolled in Stat 139. This is an example of sampling bias.
+\color{black}
+
+\newpage
+
+#### Question 2.
+Harvard reports that 49.5\% of undergraduate students at the college are male. 
+
+  a) What proportion of undergraduate students in this survey are male?
+  
+```{r}
+
+table(surveydata$gender) #look at table of counts with table()
+prop.table(table(surveydata$gender)) #look at table of counts with table()
+
+ 
+phat <- as.numeric(prop.table(table(surveydata$gender)))[2] #can use prop.table to convert to proportions
+
+```
+ 
+\color{blue}
+
+57.3\% of the sample self-reported as male.
+
+\color{black}
+
+  b) Write down the formula for the confidence interval for a population proportion.  Calculate this interval from the data.
+  
+  $$\hat{p} \pm z* \sqrt{\frac{\hat{p}(1-\hat{p})}{n}} $$
+  
+```{r}
+zstar = qnorm(0.975)
+lb = phat - zstar*sqrt(phat*(1-phat)/n)
+ub = phat + zstar*sqrt(phat*(1-phat)/n)
+lb;ub
+
+prop.test(table(surveydata$gender=="Female"))
+
+```
+  
+\color{blue}
+
+Note: the formulas and hand-calculations do not match up because R used a continuity correction for estimating what is truly discrete (based on a binomial) with a continuous distribution (a normal).
+
+\color{black}
+
+  
+  c) What is a reasonable target population for this survey?  What can you conclude from the confidence interval above?
+   
+\color{blue}
+
+A reasonable target population would be Harvard students concentrating in Statistics or in the Data Science Masters program (the vast majority of students that would take 139).  Here, the true Harvard population proportion falls within the bounds, so there is not enough evidence to suggest that students in these fields/programs are biased towards being male.
+
+\color{black}
+
+
+  d) What assumptions are needed for the confidence interval in part (b) to be reasonable?  Is it ever exact?  Why or why not?
+   
+\color{blue}
+
+We need the normal approximation to the binomial to hold (this calculation is based on that), so this is reasonable as long as there is a large number of both males and females in expectation (general rule of thumb is 10 or more in expectation).  Here we are right at that cut-off: $E(X) =  np_0 = 82\cdot0.495 = 40.59$ and $E(n-X) = n(1-p_0) = 82\cdot0.505 = 41.41$.
+
+It will never be exact as this is always based on the normal approximation (gets closer to exact the larger the sample size is).
+
+\color{black}
+
+
+#### Question 3.
+
+What other interesting questions could be answered with this data set?  Perform some exploratory analyses (both visually and statistically) to investigate these questions.
+
+\color{blue}
+
+There are lots of possibilities, but looking for relationships between heartrate and the other predictors make the most sense.  Below are some visuals and summary statistics to look at how heartrate relates to exercise and coffee drinking status.  Surprisingly, coffee drinkers had a lower heartrate on average (and is close to being statistically significant: $p=0.076$).  There is also a negative association between heartrate and amount of excercise (which is what we would expect). 
+
+\color{black}
+
+```{r}
+boxplot(heartrate~coffee, data=surveydata)
+plot(heartrate~exercise, data=surveydata)
+
+by(surveydata$heartrate,surveydata$coffee,mean)
+cor(surveydata$heartrate,surveydata$exercise)
+
+t.test(heartrate~coffee, data=surveydata)
+```

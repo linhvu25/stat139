@@ -1,0 +1,154 @@
+---
+title: "Lecture 1 Handout: Data and EDA"
+author: "Statistics 139 Team"
+date: "September 07, 2023"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+urlcolor: blue
+---
+
+\begin{small}
+
+\textbf{Topics}
+\begin{itemize}
+\item Concept Checks: Stat 110/111 Review 
+\item Handling data in \textsf{R}
+\item Numerical summaries: mean, SD, median, IQR
+\item Graphical summaries: barplots, boxplots, histograms, scatterplots
+\end{itemize}
+
+\end{small}
+
+The material in this lab corresponds to the Lecture 1 Notes.
+
+\vspace{0.5cm}
+
+
+### Concept Checks (Stat 110/111 Review):
+
+a) What is the distinction between $\bar{X}$, $\bar{x}$, and $\mu$?
+
+\vspace{3cm}
+  
+b) What is the sampling distribution of $\bar{X}$?  When is this exact?  When is this an approximation?
+
+\vspace{3cm}
+  
+c) What is the sampling distribution of the sample variance, $S^2$? When is this exact?  When is this an approximation?
+
+\vspace{3cm}
+ 
+\newpage
+
+### The General Social Survey
+ 
+The General Social Survey (\href{https://gss.norc.org/}{GSS}) is a biennial, nationally representative survey conducted by the National Opinion Research Center at the University of Chicago. The GSS is 'second only to the U.S. Census as the most cited social science dataset in the country.'  Even though the data are collected via a complex sampling design, the data can reasonably be analyzed validly as if it were a simple random sample from the US population (we will get into handling other forms of samples more carefully via survey weights later in the course), see \href{https://statmodeling.stat.columbia.edu/2015/07/14/survey-weighting-and-regression-modeling/}{\underline{this blog}} by Andrew Gelman, a world-class statistician.
+
+The following questions will be explored in this lab with the GSS 2018 data:
+
+1. At what age do Americans no longer further their education?
+
+2. How is marital status linked to education and low income status?
+
+3. How does income relate to being a government vs. private sector employee?
+
+
+The full GSS 2018 data are available in the data file 'gss18.csv'. For convenience, descriptions of the variables used in this lab exercise are included below. To view the complete list of study variables and their descriptions, access the GSS documentation code book by clicking \href{http://gss.norc.org/documents/codebook/gss_codebook.pdf}{\underline{here}}.
+  
+  - \texttt{age}: age of respondent, in years. Respondents 89 years or older were recorded as 89 years of age.
+  
+  - \texttt{educ}: years of education of respondent (beyond kindergarten).  Respondents with 20 or more years of education were recorded as 20 years.
+  
+  - \texttt{rincom16}: the respondent's income, categorized into many groups.  See: \newline \url{https://gssdataexplorer.norc.org/variables/6168/vshow} 
+  
+  - \texttt{hrs1}: number of hours respondent worked the previous week.
+    
+  - \texttt{marital}: marital status, with categories 1	= married, 2	= widowed, 3 = divorced, 4 = separated, and 5 = never married.
+  
+  - \texttt{wrkgovt}: does respondent work for the government?  1 = government job, 2 = private sector job.
+
+Note: there are many, many more variables in the data set.
+ 
+
+#### Question 1.
+
+  a)  Using numerical and graphical summaries, describe the distribution of ages of the respondents.
+  
+```{r, eval = FALSE, echo=FALSE}
+gss18 = read.csv("data/gss18.csv")
+hist(gss18$age, col = "cyan")
+summary(gss18$age)
+``` 
+\vspace{3cm}
+  
+  b) Calculate the median and interquartile range of the variable \texttt{hrs1}. Write a sentence explaining the median in the context of these data.
+
+```{r}
+
+```
+
+
+
+\vspace{3cm}
+
+  c) Use the following code to draw a random sample of 500 participants from the entire dataset. Using the random sample, \texttt{gss18.samp}, visually investigate the relationship between age and education.  Based on this visual, at what age do respondents appear to no longer further their education?  Use this smaller sample only for this part of the problem.
+
+```{r, eval = FALSE}
+# draw a random sample
+set.seed(139)
+row.num = sample(1:nrow(gss18), 500, replace = FALSE)
+gss18.samp = gss18[row.num, ]  
+
+# create a visual
+```  
+
+\vspace{3cm}
+
+  d) Compare the distribution of \texttt{educ} across each group in \texttt{marital} among adults (defined as individuals 25 years of age or older). Describe any trends or interesting observations.
+
+\vspace{3cm}
+
+   
+#### Question 2.
+ 
+  a) Create a dummy/indicator/binary variable \texttt{lowincome} to indicate those individuals that make less than \$15,000.  Construct a two-way table, with \texttt{marital} as the row variable and \texttt{lowincome} as the column variable. Which group is at lowest risk of being low income?  Highest risk?
+
+
+\vspace{2cm}
+
+  b) Relative risk can measure how two categorical variables are related (really, two binary variables). Here, we are interested in measuring the relative risk as the ratio of: the proportion of respondents who are low income among those who are divorced to the proportion of respondents who are low income among those who are married.  Calculate this relative risk for these respondents. From these calculations, is it possible to conclude that getting divorced reduces or raises one's chance of being low income?
+
+\newpage
+
+#### Question 3.
+
+  a) Describe the distribution of income of the respondents.  Estimate the median income, and provide a rough estimate for both the mean income and standard deviation of incomes.
+
+\vspace{3cm}
+
+
+  b) The following code creates a new variable, \texttt{estimated\_income}, within \texttt{gss18} that records the rough median of each income group from the variable \texttt{rincom16} for each respondent (in thousands of dollars).  Use this variable to substantiate your 3 estimates in the previous part.  Which of the 3 estimates will be biased?
+  
+```{r, eval = FALSE}
+medians = c(0.5, 2, 3.5, 4.5, 5.5, 6.5, 7.5, 9, 11.25, 13.75, 16.25, 18.75, 21.25, 
+            23.75, 27.5, 32.5, 37.5, 45, 55, 67.5, 82.5, 100, 120, 140, 160, 200)
+gss18$estimated_income = medians[gss18$rincom16]
+```
+\vspace{3cm}
+
+  c) Which of the 3 estimates will be biased in the previous part?  Will it be over or under estimated?  Why?
+
+\vspace{3cm}
+
+  d) Propose a better way to create the estimated income for each respondent that will end up with a less biased estimate than in part (b)?  You do not need to implement this.
+  
+ \vspace{3cm}
+ 
+  e) Compare the distribution of \texttt{estimated\_income} for government employees vs. private industry employees.  Describe what you see in a few sentences.
+  

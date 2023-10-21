@@ -1,0 +1,229 @@
+---
+title: "Resampling Methods"
+author: "Lecture 5 Handout"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    #includes:
+    #  in_header: ../../stat139_header.tex
+    fig_width: 5
+    fig_height: 3.5
+---
+
+\begin{small}
+
+\textbf{Topics}
+\begin{itemize}
+\item Permutation Testing
+\item Bootstrap Estimation
+\end{itemize}
+
+\end{small}
+
+The material in this lab corresponds to the Lecture 5 Notes.
+
+
+\vspace{0.1in}
+
+In this lab we will continue to analyze the \href{https://www.thetrumparchive.com/}{Trump tweets} data set (all of President Trump's original tweets in 2020-21 from Nov 1, 2020 until he was banned from Twitter), in the data file 'trumptweets.csv', to answer the question: 
+
+
+1. Are the number of retweets associated with the inclusion of the word ``democrat" in tweets?
+
+The following variables are measured:
+  
+  - \texttt{date}: date of the tweet, in month/day/year format
+  - \texttt{time}: date of the tweet, in 24 hour time (aka, military time)
+  - \texttt{retweets}: the number of retweets of Trump's original tweet.
+  - \texttt{favorites}: the number of times the tweet was 'favorited'.
+  - \texttt{isRetweet}: a logical variable (with only \texttt{FALSE} in this data set).
+  - \texttt{id}: a unique ID from Twitter for each tweet.
+  - \texttt{text}: the actual text of the tweet.
+
+```{r packages}
+# install.packages( c("coin","perm","boot") )
+# library(coin)
+library(perm)
+library(boot)
+```
+
+#### Concept Checks
+
+
+a) When bootstrapping, why do we sample with replacement?  Why do we sample the original sample size, $n$, each time?
+
+b) How could we determine if bootstrapped CIs *improve* things in comparison to the standard methods?  What was wrong in the first place?  
+
+
+#### Question 1: The Democrats: A Trump Tweet Favorite
+
+  a) Look at the histogram of \texttt{retweets} and comment on the appropriateness of $t$ based methods.  Explore  transformations to use to improve the situation (do not get too exotic), and comment on what you find.
+  
+\textcolor{blue}{Very right skewed}
+  
+```{r 1a}
+# look at some histograms
+trump = read.csv('data/trumptweets.csv')
+
+hist(trump$retweets)
+hist(log(trump$retweets), breaks=30)
+``` 
+
+  b) Use the following code (ignore any warnings for now) to add a variable \texttt{dem} to the data frame which indicates whether Trump mentioned word "democrat" in the tweet.
+  
+```{r 1b}
+dem.indices = grep("democrat",trump$text,ignore.case=T,useBytes = TRUE)
+trump$dem = rep(0,nrow(trump))
+trump$dem[dem.indices] = 1  
+table(trump$dem)
+```
+  
+  c) Perform 3 tests to see if Trump tweets including the word 
+  'democrat' changes the popularity of the tweets (based on retweets): (i) a $t$ based method with the log-transformed response, (ii) a method based on ranks, and (iii) a permutation test (performed 'manually').  
+
+  
+```{r 1c}
+# t, ranksum, and permutation test
+# don't forget to set.seed
+set.seed(139)
+
+# recode entries with 0 retweet
+trump[trump$retweets <= 0, ] <- 1
+hist(log(trump$retweets), breaks=30)
+
+# t
+t.test(log(trump$retweets) ~ trump$dem)
+
+# ranksum
+wilcox.test(trump$retweets ~ trump$dem)
+
+# permutation
+library(perm)
+permTS(retweets~dem, data=trump)
+```
+
+\vspace{0.5in}
+
+  d) Provide a bootstrapped confidence interval to estimate the difference in mean number of 'retweets' when mentioning democrats vs. not.  Interpret this interval.
+
+```{r 1d}
+# bootstrap interval
+set.seed(139)
+nsims = 10000
+boot.diff = c(NA, nsims)
+
+for(i in 1:nsims){
+  
+  boot1 = sample(trump$retweets[trump$dem == 1], replace=T)
+  boot2 = sample(trump$retweets[trump$dem == 0], replace=T)
+  
+  boot.diff[i] = mean(boot1)-mean(boot2)
+}
+
+quantile(boot.diff, c(0.025, 0.975))
+```
+
+\vspace{0.5in}
+
+  e) Confirm your results with the packaged \texttt{boot} and \texttt{perm} packages in the \textsf{R} chunk below:
+  
+```{R, eval = F}
+ library(boot)
+ library(perm)
+
+# function to perform the bootstrap
+
+mean.diff <- function(data,indices){
+  d <- data[indices,] # allows boot to select sample
+  return(diff(by(d$retweets,d$dem,mean)))
+}
+
+set.seed(12345)
+results <- boot(data=trump, statistic = mean.diff, R=1000)
+boot.ci(results,type=c("norm","basic"))
+
+permTS(retweets~dem, data=trump, exact = T)
+```
+  
+
+\newpage
+
+
+#### Question 2: coverage probability simulations 
+
+The code below uses a \texttt{for} loop to repeatedly (\texttt{nsims = 100}) create samples of size $n_1=n_2=10$ for 2 different groups of $Y_1,Y_2$ where $Y_1 \sim Expo(\lambda_1=1)$ and  $Y_2 \sim Expo(\lambda_2=2)$.  It then calculates 1000 confidence intervals from two approaches: $t$-based and bootstrap based.
+  
+\footnotesize
+```{r, eval = F}
+# in case you forgot them earlier
+# library(boot) # library(perm)
+starttime = Sys.time()
+set.seed(139) 
+nsims = 100
+nboots = 500
+mean.diff.sim <- function(data,indices){
+  d <- data[indices,] # allows boot to select sample
+  return(-diff(by(d$y,d$x,mean)))
+}
+
+# set up the parameters for the data generating process
+lambda1 = 1
+lambda2 = 2
+n1 = 10
+n2 = 10
+
+# create blank storage matrices for results (ci bounds)
+t.cis = matrix(NA,ncol=2,nrow=nsims)
+boot.cis = matrix(NA,ncol=2,nrow=nsims)
+
+#the for loop does the bulk of the work
+for(i in 1:nsims){
+  # generate the data
+  y1 = rexp(n1,lambda1)
+  y2 = rexp(n2,lambda2)
+  y = c(y1,y2)
+  x = c(rep(1,n1),rep(2,n2))
+  data = data.frame(y=y,x=x)
+  
+  # calculate cis
+  ttest = t.test(y1,y2)
+  t.cis[i,] = ttest$conf.int
+  boots <- boot(data=data, statistic=mean.diff.sim,R=500)
+  boot.cis[i,] = boot.ci(boots, type = c("basic"))$basic[4:5]
+}
+endtime = Sys.time()
+```
+
+\normalsize
+  a) Determine $E(Y_1)$ and $E(Y_2)$.  
+  
+* $E(Y_1) = 1$
+* $E(Y_2) = \frac{1}{2}$
+
+\vspace{2cm}
+
+  b) Determine the empirical coverage probability of each of the 3 methods, and compare their average widths.
+
+```{r, eval = F}
+# Determine the coverage probabilities of each of the 3 methods
+mu.diff = 1/lambda1-1/lambda2
+
+
+```
+
+\vspace{2cm}
+
+  c) How long did the simulation take (running time, in seconds)?
+
+```{r, eval = F}
+# run time
+```  
+  
+  d) Rerun the simulation so that the sample sizes are now $n_1=n_2=30$ and $n_1=n_2=100$?  How have things changed?
+  
+  
+

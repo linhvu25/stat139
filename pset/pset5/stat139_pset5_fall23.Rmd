@@ -1,0 +1,135 @@
+---
+title: "Problem Set 5: More Regression Modeling"
+author: "Linh Vu (Collab: Brice Laurent)"
+date: "Due: October 27, 2023"
+output: pdf_document
+---
+
+\begin{small} 
+		
+\noindent This assignment is \textbf{due Friday, October 27 at 11:59pm}, handed in on Gradescope (remember, there are two separate submissions, one for your pdf, and another for you rmd file).  Show your work and provide clear, explanations when asked.  \textbf{Incorporate the \underline{relevant} R output in this R markdown file}. Only the key output should be displayed for each problem and the relevant parts should be \textbf{highlighted} in some way.  Make sure that you write-up any interpretation of R-code in your own words (don't just provide the output).
+
+\normalsize
+
+\vspace{0.1in}
+
+\noindent \textbf{Collaboration policy (for this and all future homeworks)}: You are encouraged to discuss the problems with other students, but you must write up your solutions yourself and in your own words. Copying someone else's solution, or just making trivial changes is not acceptable. 
+\vspace{0.1in}
+		
+\end{small}
+	
+
+**Problem 1.** 
+
+Let $X \sim \text{Unif}(a,b)$.  Feel free to use results from the *Stat 110 Distribution Sheet* as seen on the midterm exam. 
+
+(a) Determine the covariance between $X$ and $X^2$.
+
+(b) Assume $b-a=1$ (so that the variability of $X$ is fixed).  For what values of $a$ (and $b$) will this covariance be zero?  When will this covariance be large (and positive)?  When will it be negative (and large in magnitude)?  What does this mean for where the distribution of $X$ is centered in each case?
+
+(c) What are the implications of the results in (b) for a quadratic regression model (when $X$ and $X^2$ are both used as predictors)? Is this phenomenon specific to the Uniform distribution?
+
+*Note: do not be afraid to check your answers empirically using R.
+
+\vspace{0.2in}
+
+
+
+
+**Problem 2.** 
+
+The file 'pregnancydata.csv' includes several variables to model the birthweight of babies (measured through an online survey).  Those variables are defined below.  Use this data set in R to answer the questions below:
+\vspace{-0.06in}
+
+\small
+\begin{tabular}[h]{rl}
+\bf{id}: & a unique identifier of the mother\\
+\bf{weight}: & birthweight of the newborn baby, in ounces \\
+\bf{pregnancylength}: & the length of the pregnancy, in days \\
+\bf{country}: & where the birth took place with categories United States (US), \\
+& United Kingdom (UK), Canada (Can), and Other \\
+\bf{motherage}: & age of mother at childbirth, in years\\
+\bf{multiples}: & whether the baby was a 1=singleton or 2=twin\\
+\bf{sex}: & sex of the baby: girl or boy\\
+\bf{induced}: & a binary indicator for whether labor was induced with oxytocin\\
+\bf{cesarean}: & a binary indicator for whether a cesarean (c-section) was performed\\
+\bf{previousbirths}: & the number of births by the mother previous to this recorded one (from 0 to 10)\\
+\end{tabular}
+\normalsize
+
+(a) Fit a regression model to predict weight from country and use the `relevel` command to make the "Other" group the reference group (call this \textbf{Model 1}).  Interpret the results and provide a visual to support your conclusions.  
+
+(b) Build a $3^{rd}$ order polynomial regression model to predict weight from `pregnancylength` (call this **Model 2**). Interpret the output and provide a visual to support the results of the model.  
+
+(c) Use **Model 2** to estimate the probability that a baby will weigh less than 7 pounds (112 ounces) when born on day 280. 
+
+(d) It is of medical interest to determine at what gestational age a developing fetus is gaining weight the fastest.  Use **Model 2** to estimate this *period of fastest growth*.
+
+(e) Fit a LOESS model (call this **Model 3**) to predict weight from `pregnancylength` (use a smaller span of 0.3).   Provide a visual to support the results of the model.  How does this model compare to **Model 2** in its prediction accuracy?
+
+
+\vspace{0.2in}
+
+
+**Problem 3.** 
+
+In this problem, we will attempt to investigate whether the COVID-19 related restrictions imposed by the government had any effect on the reporting of criminal activity in the Boston Police Department (BPD).  We will be using the same combined dataset from last time (now named 'bpd.csv') that includes the number of daily incident reports filed (`count`) and various weather indicators on those days (`maxtemp` is the only weather variable we will use in this problem).  Note: we also used these data in Pset 3.
+
+Note: a state of emergency was declared in Massachusetts on March 10, 2020, and restrictions on non-essential businesses, schools, and MBTA service were mainly put into effect on March 17,2020 (see this [City of Boston article](https://www.boston.gov/departments/public-health-commission/coronavirus-timeline) for the timeline). 
+
+The \textsf{R} chunk below reads in the data and includes some code to create a variable called `dayinyear` in the `bpd` data frame that counts the number of days into the year, starting with 0 for Jan 1 (similar to what was done on the previous pset).
+```{r}
+bpd = read.csv('data/bpd.csv')
+
+jan1_19 = as.Date("1/1/19",format="%m/%d/%y")
+jan1_20 = as.Date("1/1/20",format="%m/%d/%y")
+jan1_21 = as.Date("1/1/21",format="%m/%d/%y")
+
+bpd$dayinyear = as.Date(bpd$date,format="%m/%d/%y") - jan1_19 
+bpd$dayinyear[bpd$year==2020] =
+  as.Date(bpd$date,format="%m/%d/%y")[bpd$year==2020] - jan1_20 
+bpd$dayinyear[bpd$year==2021] =
+  as.Date(bpd$date,format="%m/%d/%y")[bpd$year==2021] - jan1_21
+```
+
+(a) Create a binary/dummy variable (call it `restrictions`) to indicate whether that day falls under the time period of state of emergency or restricted business operations in the city of Boston (all dates between and including March 10, 2020 and Friday, May 28, 2020).  How many days fall in this time period in the data set?
+
+(b) Calculate the mean number of daily incident reports filed by the BPD during the restriction orders in Boston.  Separately calculate the mean number of daily incident reports for a comparison group with the same calendar dates in the pre-pandemic portion of the data. Use these two groups to calculate a reasonable 95% confidence interval for the effect of COVID-19 restrictions on the reporting of crime in the BPD (based on a simple 2-group comparison method and not linear regression).
+
+(c) Fit a  linear regression model to predict `count` from `maxtemp` and `restrictions` (call it **model1**), and print out the `summary` results. Briefly interpret the coefficient estimates and use this model to estimate the effect of COVID-19 restrictions on the reporting of crime in the BPD (with 95% confidence).
+
+(d) Fit a  linear regression model to predict `count` from `maxtemp`, `restrictions`, `dayinyear` and all 2-way interactions between these 3 predictors (call it **model2**), and print out the `summary` results.  Interpret what this model says about the relationship between crime reporting in the BPD and COVID-19 restrictions. Compute an estimate and 95\% CI for the effect of restrictions on the 100th day of the year, assuming a \texttt{maxtemp} of 60 degrees.  Also estimate `count` (and provide a 95\% CI) on the 91st day of the year in 2020, assuming the temperature was 50 degrees. Do the same for 2019 and compare the difference.
+
+(e) Perform a formal hypothesis test to determine whether **model2** performs significantly better at predicting `count` than **model1**.
+
+(f) Investigate the assumptions for **model2**. Be sure to include and reference useful visuals.
+
+(g) Determine which 4 dates **model2** did the worst job at predicting `count`. Can you think of a reason why any of these dates do not follow the relationships in this model? (all 4 are explainable with a little Google searching)
+
+(h) Write a 200-300 word summary addressing whether there is evidence that COVID-19 reduced the amount of crime in Boston.  Be sure to reference the results above (specifically, which approach you think was most reasonable) and mention any biases or confounders that may be present in this relationship.
+ 
+\vspace{0.2in}
+
+
+
+
+
+**Problem 4.** 
+
+Perform a simulation study (with 1,000 iterations) where the data are **generated** from the following $\sin$ function:
+$$Y_i = \sin(X_i) + \varepsilon_i$$
+
+where $\varepsilon_i \sim N(0,\sigma^2=0.1^2)$ and independent, and $X_i$ are sampled independently from a Unif($a=0,b=6$), for $n=50$ observations.
+
+For each iteration, fit 4 different polynomial models (use the raw form in R): (i) $3^{rd}$ order, (ii) $5^{th}$ order, (iii) $7^{th}$ order, and (iv) $=9^{th}$ order.  Save the $\beta_1$ coefficient (linear term) estimates for each of the 4 models for each of the 1,000 iteration (presumably a 1000x4 matrix) and either separately save all 10 $\beta$ coefficient estimates for the $9^{th}$ order or the model objects themselves (in a list).
+
+Evaluate which model is *best* in each iteration two ways: (i) based on sequential ESS $F$-tests (you will perform 3 of them in each iteration) and (ii) out-of-sample mean squared error (based on a single test set of $n_{test}=1000$ generated from the same data generating process as the regular $n=50$ set of observations...this does not need to be recreated in each iteration).
+
+(a) Based on the ESS $F$-tests, how often is each of the 4 models considered the best?  Based on out-of-sample mean squared error?
+
+(b) Which metric is more conservative when it comes to overfitting?  How do you know?
+
+(c) Plot 10+ $\hat{\mu}_Y$ curves (the predicted curve) based on the estimated $9^{th}$ order polynomial model (for 10+ iterations): with at least 5 curves for when $9^{th}$ order model wins and at least 5 curves for when it does not win (based on out-of-sample mean square error).  Be sure to color code these curves based on when this model wins vs. when it does not win.  Interpret this plot: what does this say about how overfitting affects out-of-sample mean square error?
+
+(d) Provide the boxplots of $\hat{\beta}_1$ estimates in each of the 4 models (should be a side-by-side boxplot with 4 boxplots based on 1000 estimates each).  Interpret this plot in context of this situation.  What does this illustrate?  Why is this not surprising?
+

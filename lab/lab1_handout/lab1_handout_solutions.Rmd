@@ -1,0 +1,353 @@
+---
+title: "Lab 1: Intro to Data Solutions"
+author: "Statistics 139"
+date: "September 08, 2023"
+
+fontsize: 11pt
+geometry: margin=1in
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+
+#### Topics
+
+  - Basic Data Cleaning
+  - Numerical and Graphical Summaries
+  - Subsetting Data
+
+\vspace{0.5cm}
+
+The data in the file 'dds_discrimination.csv' represent a sample of 1,000 residents of California who receive funds from the California Department of Developmental Services (DDS); individuals receiving funds are referred to as 'consumers'. 
+
+A study team examined the mean annual expenditure on consumers by ethnicity and found that the mean annual expenditures on Hispanic consumers was approximately one-third of the mean expenditures on White non-Hispanic consumers. 
+
+As a result, an allegation of ethnic discrimination was brought against the California DDS. Does this finding represent sufficient evidence of ethnic discrimination, or might there be more to the story?
+
+\vspace{0.5cm}
+
+The following variables are included in the dataset.
+
+  - \texttt{ID}: consumer ID number
+  - \texttt{Age.Cohort}: age group, where \texttt{1} refers to 0 - 5 years, \texttt{2} refers to 51+ years, \texttt{3} refers to 13 - 17 years, \texttt{4} refers to 18 - 21 years, \texttt{5} refers to 22 - 50 years, and \texttt{6} refers to 6 - 12 years.
+  - \texttt{Age}: age in years
+  - \texttt{Gender}: gender, recorded as \texttt{1} for female and \texttt{2} for male
+  - \texttt{Expenditures}: annual expenditure in dollars
+  - \texttt{Ethnicity}: ethnicity, recorded as either \texttt{1} for American Indian, \texttt{2} for Asian, \texttt{3} for Black, \texttt{4} for Hispanic, \texttt{5} for Multi Race, \texttt{6} for Native Hawaiian, \texttt{7} for Other, and \texttt{8} for White not Hispanic.
+
+\vspace{0.5cm}
+ 
+### Problem 1: A little data clean-up
+
+First, a bit of data cleaning will be helpful.
+
+  a) Read the file into \textsf{R} as the \texttt{dds.discr} dataframe, and examine the first few observations.
+
+```{r}
+#read file into R
+dds.discr <- read.csv("data/dds_discrimination.csv")
+head(dds.discr)
+```
+
+  b) The first column contains a 'variable' \texttt{X} that is just the row number as carried over from the CSV file. Run the following to eliminate \texttt{X}.
+    
+```{r}
+#remove first column
+dds.discr[,1] <- NULL
+    
+#alternatively, we can give an extra argument into the read.csv function    
+dds.discr2 <- read.csv("data/dds_discrimination.csv", row.names=1)
+head(dds.discr2)
+
+```
+    
+    
+  c) Datasets can sometimes have variables with long or messy names. For the sake of practice, read the documentation for the \texttt{colnames( )} function and change the names of the variables to ones you find more convenient. To access the \textsf{R} help files for a function, type \texttt{?} before the function name.
+
+```{r}
+# your work here
+
+names(dds.discr) = c("id","age.cohort" ,"age","gender","expenditures","ethnicity")
+names(dds.discr) 
+
+```
+
+
+
+ d) Let's look again at the dataset, this time using the str() function. What looks strange about the Gender and Expenditures variables? Hint: You've seen this in class already...
+ 
+```{r}
+#maybe better to use str()
+str(dds.discr)
+```
+
+Explain how the following two lines are designed to find the problems with the Gender and Expenditures variables, and explain what those problems are. You might have to read the documentation by typing \texttt{?} before any function names you don't know.
+
+```{r}
+
+table(dds.discr$gender)
+dds.discr$expenditures[which(is.na(as.numeric(dds.discr$expenditures)))]
+
+```
+
+
+Challenge: Explain how the following four lines of code fix the problem with the Expenditures variable. It's ok if you can't figure it out, this one is hard. You can just run the code for now.
+
+```{r}
+
+dds.discr.uppercase <- toupper(dds.discr$gender)
+dds.discr.uppercase[which(dds.discr.uppercase == "MALE")] <- "2"
+dds.discr.uppercase[which(dds.discr.uppercase == "FEMALE")] <- "1"
+dds.discr$gender <- as.numeric(dds.discr.uppercase)
+
+
+```
+
+
+Challenge: Explain how the following two lines of code fix the problem with the Expenditures variable. It's ok if you can't figure it out, this one is hard. You can just run the code for now.
+
+```{r}
+
+dds.discr$expenditures[which(is.na(as.numeric(dds.discr$expenditures)))] <- gsub("\\$","",dds.discr$expenditures[which(is.na(as.numeric(dds.discr$expenditures)))]) 
+
+dds.discr$expenditures[which(is.na(as.numeric(dds.discr$expenditures)))] <- gsub(",","",dds.discr$expenditures[which(is.na(as.numeric(dds.discr$expenditures)))]) 
+
+dds.discr$expenditures <- as.numeric(dds.discr$expenditures)
+
+```
+
+
+
+
+  e) The categorical variables (age cohort, gender, and ethnicity) should be converted to factor variables. Read the documentation for \texttt{factor( )} and recode these three variables. Note that age cohort is an ordered categorical variable.
+
+```{r}
+summary(dds.discr)
+
+dds.discr$gender =  factor(dds.discr$gender, levels=1:2, labels=c("F","M"))
+
+dds.discr$age.cohort = factor(dds.discr$age.cohort, levels = c(1,6,3,4,5,2),
+                                  labels=c("0-5","6-12","13-17","18-21","22-50","51+"))
+dds.discr$ethnicity =  factor(dds.discr$ethnicity, levels=1:8, labels=c("American Indian","Asian","Black","Hispanic","Multi Race","Native Hawaiian","Other","White"))
+
+```
+
+
+   
+  f) Save the clean version of the dataframe as an \texttt{.Rdata} file. (Alternatively, you could use \texttt{write.csv( )} to write the dataframe to a CSV file.)
+    
+```{r}
+#save the file
+save(dds.discr, file = "dds_discr.Rdata")
+```
+    
+  
+### Problem 2: Univariate Explorations (aka, distributions)
+
+To develop a sense of{ context for the data, start by examining the distributions of single variables. Create numerical and graphical summaries as appropriate.
+
+  a) Describe the distribution of annual expenditures. For most consumers, is the amount of financial support provided by the DDS relatively high or low?
+    
+    
+\color{blue}
+The distribution is bimodal (i.e., there are two “bumps”). Half the consumers have relatively low expenditures, less than about \$7,000. The other half follow a bell-shaped distribution centered around $40k. The box and whisker plot does not suggest what we would classify as outliers. We might say there is evidence that there are two relevant subgroups of consumers (i.e., were are observing a “mixture distribution”).
+\color{black}
+
+
+```{r}
+#graphical summaries
+hist(dds.discr$expenditures,col="lightblue")
+boxplot(dds.discr$expenditures, col="magenta")
+#numerical summaries
+summary(dds.discr$expenditures)
+```
+    
+  b) Do consumers tend to be older or younger?
+  
+\color{blue}
+Most consumers are less than 18 (note this is much younger than the US population in general).
+\color{black}
+
+```{r}
+#graphical summaries
+hist(dds.discr$age, col = "wheat")
+plot(dds.discr$age.cohort, col = "wheat")
+#numerical summaries
+summary(dds.discr$age)
+table(dds.discr$age.cohort)
+```
+    
+  c) Is there an equal representation among ethnic groups?
+
+\color{blue}  
+No. The two largest groups, Hispanics and White non-Hispanics, together represent nearly 80% of the consumers (77.7%).
+\color{black}
+
+    
+```{r}
+#graphical summaries
+barplot(table(dds.discr$ethnicity))
+barplot(prop.table(table(dds.discr$ethnicity)))
+
+#numerical summaries
+table(dds.discr$ethnicity)
+prop.table(table(dds.discr$ethnicity))
+
+mean(dds.discr$ethnicity == "White" | dds.discr$ethnicity == "Hispanic")
+
+
+
+```
+  
+    
+  d) Does gender appear to be balanced?
+ 
+\color{blue} 
+Yes, approximately half the individuals are female and half are male.
+\color{black}
+    
+```{r}
+#graphical summaries
+plot(dds.discr$gender)
+table(dds.discr$gender)
+```
+    
+### Problem 3: Bivariate Explorations (aka, relationships)
+
+Explore how variables are related to each other. 
+
+  a) How do annual expenditures vary by age? Explore this using each of the quantitative version and categorical version of age separately.  Conjecture a reason for the trend in the data.
+  
+\color{blue}
+There is a clear upward trend in expenditures as age increases; older individuals tend to receive
+more DDS funds. The purpose of providing funds to developmentally disabled individuals is to
+help them maintain a quality of life similar to those without disabilities; as individuals age, it is
+expected that their financial needs will increase.
+\color{black}
+
+    
+```{r}
+#graphical summaries
+boxplot(dds.discr$expenditures ~ dds.discr$age.cohort)
+plot(dds.discr$expenditures ~ dds.discr$age)
+
+#numerical summaries
+tapply(dds.discr$expenditures, dds.discr$age.cohort, summary)
+```
+    
+    
+  \vspace{2cm}
+    
+  b) How does the distribution of expenditures vary by ethnic group?
+  
+\color{blue}
+The distribution is quite different between ethnic groups. For example, there is very little variation
+within the Multi Race, Native Hawaiian, and Other groups; there is a greater range in groups such
+as White not Hispanic. There also seems to be a difference in the amount of funding that a person
+receives, on average, between ethnic groups.
+\color{black}
+  
+```{r}
+#graphical summaries
+par(cex.axis = 0.8, las=2) 
+boxplot(dds.discr$expenditures ~ dds.discr$ethnicity)
+```
+    
+  \vspace{2cm}
+    
+### Problem 4: Exploring Evidence of Discrimination
+
+Hispanic and White non-Hispanic individuals comprise the majority of the data. The rest of this analysis will focus on comparing how expenditures vary between these two groups.  
+
+
+
+  a) Do Hispanic consumers, on average, seem to receive less financial support from the California DDS than a White non-Hispanic consumer?
+  
+\color{blue}
+Based on the boxplot, most Hispanic consumers receive between approximately $0 to $20,000 from
+the California DDS. However, for White non-Hispanic consumers, the middle 50% of consumers
+receive between about $4,000 and $43,000. On average, a Hispanic consumer receives less financial
+support from the California DDS than a White non-Hispanic consumer.
+\color{black}
+    
+```{r}
+#graphical summaries
+boxplot(dds.discr$expenditures[dds.discr$ethnicity == "Hispanic"], 
+        dds.discr$expenditures[dds.discr$ethnicity == "White"],
+        names=c("Hispanic", "White non-Hispanic"))
+
+
+summary(dds.discr$expenditures[dds.discr$ethnicity == "Hispanic"])
+IQR(dds.discr$expenditures[dds.discr$ethnicity == "Hispanic"])
+summary(dds.discr$expenditures[dds.discr$ethnicity == "White"])
+IQR(dds.discr$expenditures[dds.discr$ethnicity == "White"])
+
+```
+    
+  \vspace{2cm}
+    
+  b) Recall that expenditures is strongly associated with age. Is there also an association between age and ethnicity, for these two ethnic groups? 
+ 
+\color{blue} 
+Hispanics tend to be younger, with most Hispanic consumers falling into the youngest three age cohorts. In contrast, White non-Hispanics stend to be older; most consumers in this ethnic group are in the 22-50 age cohort, and relatively more White non-Hispanic consumers are in the 51+ age cohort.
+\color{black} 
+  
+```{r}
+#graphical summaries
+par(mfrow = c(1,2))
+plot(dds.discr$age.cohort[dds.discr$ethnicity == "Hispanic"])
+plot(dds.discr$age.cohort[dds.discr$ethnicity == "White"])
+
+#numerical summaries
+table(dds.discr$age.cohort[dds.discr$ethnicity == "Hispanic"])
+prop.table(table(dds.discr$age.cohort[dds.discr$ethnicity == "Hispanic"]))
+table(dds.discr$age.cohort[dds.discr$ethnicity == "White"])
+prop.table(table(dds.discr$age.cohort[dds.discr$ethnicity == "White"]))
+
+
+```
+    
+    
+  \vspace{2cm}
+    
+  c) For a closer look at the relationship between age, ethnicity, and expenditures, compare how average expenditures differs by ethnic group within each age cohort. Describe your findings.
+
+\color{blue}
+When expenditures are compared within age cohorts, there are not large differences between mean
+expenditures for White non-Hispanics versus Hispanics. Comparing individuals of similar ages
+reveals that the association between ethnicity and expenditures is not nearly as strong as it seemed
+from the initial comparison of overall averages.
+\color{black}
+ 
+    
+```{r}
+#first subset the data into two ethnicity groups
+dds.hisp <- dds.discr[dds.discr$ethnicity == "Hispanic",]
+dds.white <- dds.discr[dds.discr$ethnicity == "White",]
+
+#calculate and compare means by group
+hisp.means <- tapply(dds.hisp$expenditures, dds.hisp$age.cohort, mean)
+white.means <- tapply(dds.white$expenditures, dds.white$age.cohort, mean)
+data.frame(white.means, hisp.means, diff=white.means-hisp.means)
+```
+    
+    
+  \vspace{2cm}
+    
+  d) Does there seem to be evidence of ethnic discrimination in the amount of financial support provided by the California DDS? Explain why the bivariate analysis conducted by the study team was misleading (bonus for remembering the specific term for the responsible phenomenon, which was covered in Stat 110!).
+
+\color{blue}    
+There does not seem to be evidence of ethnic discrimination. Although the average annual
+expenditures is lower for Hispanics than for White non-Hispanics, this is due to the difference in
+age distributions between the two ethnic groups—age is a confounder for the relationship between
+ethnicity and expenditures. These data represent an extreme example of confounding known as
+Simpson’s paradox, in which an association observed in several groups may disappear or reverse
+direction once the groups are combined. In other words, an association between two variables X
+and Y may disappear or reverse direction once data are partitioned into subpopulations based on a
+third variable Z, the confounding variable.
+\color{black}
+
+  \vspace{2cm}

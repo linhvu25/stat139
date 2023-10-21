@@ -1,0 +1,246 @@
+---
+title: "Multiple Regression Parameterizations"
+author: "Lab 7 Handout"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+\begin{small}
+	
+	\textbf{Topics}
+	\begin{itemize}
+	  \item Q1: Influential points
+	  \item Q2: Categorical predictors with multiple levels
+	  \item Q3: Nonlinearities and polynomials 
+	  \item Q4: Interactions
+	\end{itemize}
+	
+\end{small}
+
+#### Question 1: Influential points
+
+The `census_2010.csv` dataset has data on infant mortality and number of doctors for each of the 50 states including Washington, D.C.
+ 
+  - Infant mortality (\texttt{inf.mort}) is measured as number of infant deaths in the first year of life per 1,000 births.
+  
+  - Number of doctors (\texttt{doctors}) is recorded as number of doctors per 100,000 members of the population.
+
+Suppose we are interested in modeling infant mortality rate from number of doctors. 
+
+a) Plot the data. Describe what you see---specifically with regards to unusual points? Identify this unusual point.
+
+DC is a high leverage point because it has a lot of doctors compared to other states. 
+
+```{r 1a}
+census <- read.csv("data/census_2010.csv")
+plot(inf.mort~doctors,census)
+```
+
+    \vspace{1cm}
+
+b) Fit a model predicting infant mortality rate from number of doctors using the complete data, then fit the same model but excluding the influential observation. On a single scatterplot, illustrate the effect of the influential point on the estimated model coefficients.
+
+```{r}
+lm.dc <- lm(inf.mort~doctors, census)
+dfbeta <- as.data.frame(dfbeta(lm.dc))
+plot(dfbeta)
+```
+
+    \vspace{1cm}
+
+c) What happens to the sampling distribution of $\hat{\beta}_1$ in the presence of an influential point? Apply a bootstrapping approach to the pairs of observations in the complete dataset and describe what you see.
+
+```{r}
+
+```
+
+
+    \vspace{1cm}
+
+
+d) From a model interpretation perspective, why might it be reasonable to exclude Washington, DC from an analysis of infant mortality and number of doctors based on this data?
+    
+    \vspace{2cm}
+
+\newpage
+
+### Problem 2: Categorical predictors with multiple levels
+
+The Prevention of REnal and Vascular END-stage Disease (PREVEND) study took place between 2003 and 2006 in the Netherlands. Clinical and demographic data for the 4,095 participants are in the \texttt{prevend.csv} data set.
+
+Is RFFT score associated with educational attainment? Yhe variable \texttt{Education} indicates the highest level of education that an individual completed: primary school (0), lower secondary school (1), higher secondary school (2), or university (3). 
+
+a) Add a variable to the \texttt{prevend} data frame that recodes \texttt{Education} as a factor variable. The original numeric version of the variable will be used in part d).
+
+\vspace{0.5cm}
+
+b) Create a plot that shows the association between RFFT score and educational attainment. Describe what you see.
+    
+\vspace{2cm}
+    
+c) Apply the ANOVA procedure to explore whether RFFT score is associated with educational attainment. For the purposes of part d), do not apply a correction for multiple testing.
+    
+\vspace{2cm}
+    
+d) Fit a linear model that regresses RFFT score on education level. 
+    
+  i. Fit the model using the factor version of \texttt{Education}. Interpret the coefficients, including the intercept. How do the values of the coefficients and associated $p$-values relate to the output from part c)?
+      
+  \vspace{1cm}
+      
+  ii. Fit the model using the numeric version of \texttt{Education}. How does the interpretation of this model differ from the interpretation of the model in part i.? Which model is preferable?
+      
+  \vspace{1cm}
+
+  iii. Check the assumptions for the model in part i. Briefly comment on whether the assumptions seem reasonably satisfied.
+      
+  \vspace{1cm}
+      
+e) Is there evidence that mean RFFT score varies across levels of educational attainment? Perform a formal hypothesis test.
+    
+\vspace{1cm}
+    
+    
+f) Let's consider two nested models for predicting RFFT score. The variables of interest are statin use (\texttt{Statin}), age (\texttt{Age}), and educational attainment (\texttt{Age}).
+
+    - Model 1: statin use, age
+    - Model 2: statin use, age, educational attainment
+  
+Formally compare the two models to assess whether educational attainment is a useful predictor. 
+
+\vspace{2cm}
+
+### Question 3: Non-linearities
+
+a)  Fit a [linear] model to predict RFFT score from Age.  Add the estimated line to the scatterplot and comment on the appropriateness of a simple linear model here.
+
+```{r 3a}
+prevend <- read.csv("data/prevend.csv")
+lm.age <- lm(RFFT~Age, prevend)
+
+plot(RFFT~Age, prevend)
+abline(lm.age, col="blue", lwd=3)
+
+plot(lm.age, which=c(1,2))
+```
+
+
+  \vspace{2cm}
+  
+b) Fit a model to predict RFFT score from a cubic model (3rd-order polynomial function) of Age.  Interpret the estimates of this model, create a visual to illustrate the relationship of RFFT score with Age based on this model, and formerly test with this model is preferred to handling age simply as a linear effect.
+
+High order term is highly significant. 
+
+```{r 3b}
+# fit model
+lm.age.cubic = lm(RFFT~poly(Age, 3, raw=T), prevend)
+lm.age.cubic
+
+# predict
+x = min(prevend$Age):max(prevend$Age)
+yhat = predict(lm.age.cubic, new=data.frame(Age=x))
+plot(RFFT~Age, prevend)
+lines(yhat~x,col="red",lwd=3)
+
+# extra sum of squares test
+anova(lm.age, lm.age.cubic)
+```
+
+
+  \vspace{2cm}
+  
+c) What are the implications of using a cubic model here?  Why does it make sense mathematically based on the resulting plot?
+
+  \vspace{2cm}
+  
+d) Fit a loess model to predict RFFT score from Age.  It is up to you to choose a well-suited value of `span` (include a visual to support your choice).
+
+```{r 3d}
+lo1.age <- loess(RFFT~Age, prevend, span=0.1)
+lo2.age <- loess(RFFT~Age, prevend, span=0.2)
+lo3.age <- loess(RFFT~Age, prevend, span=0.5)
+
+x=min(prevend$Age):max(prevend$Age)
+yhat1 = predict(lo1.age, new=data.frame(Age=x))
+yhat2 = predict(lo2.age, new=data.frame(Age=x))
+yhat3 = predict(lo3.age, new=data.frame(Age=x))
+
+plot(RFFT~Age, prevend, col=rgb(0.5, 0.5, 0.5, 0.2))
+lines(yhat1~x,col="red",lwd=4)
+lines(yhat2~x,col="chartreuse",lwd=4)
+lines(yhat3~x,col="purple",lwd=4)
+```
+
+
+\newpage
+  
+### Question 4: Interactions
+
+This problem investigates the relationship between RFFT score (\texttt{RFFT}), age (\texttt{Age}), and diabetes (\texttt{DM}).
+
+a) Fit a linear model that regresses RFFT score on age and diabetes status. 
+
+```{r 4a}
+lm.age.dm <- lm(RFFT~Age+DM, prevend)
+summary(lm.age.dm)
+```
+
+    
+  i. According to the model, how does the average RFFT score for a 60-year-old compare to that of a 50-year-old, if both have diabetes?
+  
+  Lower by 11.13 points
+        
+  \vspace{0.5cm}
+        
+  ii. According to the model, how does the average RFFT score for a 60-year-old compare to that of a 50-year-old, if both do not have diabetes?
+  
+  Same as above, because we did not include an interaction term in the model so the change is the same in RFFT score for both groups. 
+        
+  \vspace{0.5cm}
+        
+b) Fit a linear model for RFFT score from age, diabetes status, and the interaction term between age and diabetes status.
+
+```{r 4b}
+lm.age.and.dm <- lm(RFFT~Age*as.factor(DM), prevend)
+summary(lm.age.and.dm)
+```
+
+    
+  i. Write the overall estimated model equation.
+        
+  $$ \widehat{RFFT} = \hat{\beta_0} + \hat{\beta_1}Age + \hat{\beta_2}DM + \hat{\beta_3}AgeDM$$
+        
+  ii. Simplify the model equation for diabetics. Simplify the model equation for non-diabetics.
+        
+   \vspace{1cm}
+        
+  iii. How does fitting an interaction term change the model? Specifically, how do the interpretations from parts a) i. and ii. change when the model has an interaction term?
+
+\vspace{1cm}
+        
+c) Fit a model to predict RFFT score from age, educational attainment, and the interaction between the two.  Formally test whether the interaction term(s) provide a statistically significant improvement in prediction accuray as measured by $R^2$ (you will need to fit a second model). Create a plot for the interaction model and summarize the model results.
+
+```{r 4c}
+edu.interact = lm(RFFT~Age*as.factor(Education), prevend)
+summary(edu.interact)
+
+edu.age = lm(RFFT~Age+as.factor(Education), prevend)
+summary(edu.age)
+
+anova(edu.age, edu.interact)
+```
+
+
+\vspace{1cm} 
+
+d) Visually assess the linearity assumption for the two models you used in the test in the previous part.  How do they compare?
+
+\vspace{3cm}
+

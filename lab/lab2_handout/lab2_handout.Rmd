@@ -1,0 +1,382 @@
+---
+title: "Lab 2: Inference Review and Intro. to Simulation"
+author: "Statistics 139 (special thanks to Julie Vu!)"
+date: "September 15, 2023"
+
+fontsize: 11pt
+geometry: margin=1in
+
+output:
+  pdf_document:
+    includes:
+#      in_header: header.tex
+    fig_width: 5
+    fig_height: 3.5
+---
+
+\begin{small}
+	
+	\textbf{Topics}
+	\begin{itemize}
+	  \item Data-driven Inference (a little review)
+	  \item Using \texttt{sample()}, \texttt{set.seed()} and \texttt{for} loops
+	  \item Using \texttt{if} statements
+	  \item Probability distributions in \textsf{R}
+	\end{itemize}
+	
+\end{small}
+
+### Problem 1: Data Analysis and Inference Review
+
+A survey was conducted over the last few years to determine what factors are related to heart rate (our first day survey from Lecture 0).  The results are saved in `survey0.csv'.  Use this dataset to answer the following questions:
+
+a) Is drinking coffee associated with heart rate? Perform a formal hypothesis test to answer this question and provide a confidence interval to estimate the true difference.
+
+```{r p1.a}
+# load data
+survey <- read.csv("data/survey0.csv")
+
+# look at data
+str(survey)
+table(survey$gender)
+table(survey$classyear)
+table(survey$coffee)
+
+# two sample t test
+test.1a <- t.test(heartrate ~ coffee, data = survey, alternative = "two.sided")
+test.1a
+```
+
+* Two sample t test (not paired)
+* 95% confidence interval: `r test.1a$conf_int`
+
+\vspace{2cm}
+
+b) What assumptions go into the inference in the previous part?  Check these assumptions using the data.
+
+* Assumptions
+  - Independence of observations within each sample: people's heart rates are generally unaffected by each other
+  - Independence between each sample
+  - Observations are distributed normally
+  
+```{r p1.b}
+hist(survey$heartrate[survey$coffee=="Yes"], breaks = 20)
+hist(survey$heartrate[survey$coffee=="No"], breaks = 20)
+```
+
+
+\vspace{2cm}
+
+d) What assumptions go into the inference in the previous part?  Check these assumptions using the data.
+
+* ANOVA
+* Assumptions
+  - Independence of observations within each sample: people's heart rates are generally unaffected by each other
+  - Independence between each sample
+  - Observations are distributed normally
+  - Constant variance between each sample
+
+```{r p1.d}
+# run anova test
+anova.1d <- aov(heartrate ~ classyear, data = survey)
+summary(anova.1d)
+
+# use boxplot to check for normality of within group distribution and check if 
+# the spreads are similar
+boxplot(heartrate ~ classyear, data = survey)
+```
+
+
+\vspace{2cm}
+
+e) Is the rate of coffee drinking different for grad students and undergrad students? Perform a formal hypothesis test to answer this question and provide a confidence interval to estimate the true difference.
+
+```{r p1.e}
+# two sample prop test
+prop.test(table(survey$classyear=="Grad Student", survey$coffee))
+```
+
+
+\vspace{2cm}
+
+f) What assumptions go into the inference in the previous part?  Check these assumptions using the data.
+
+* Assumptions
+  - Normal approximation to the underlying binomial distribution holds: three has to be enough successes and failures
+
+\vspace{2cm}
+
+
+### Using \texttt{sample()}, \texttt{set.seed()} and \texttt{for} loops
+
+Probabilities for events can be calculated (or really, estimated) via simulation by simply repeating an experiment a large number of times and counting the number of times the event of interest occurs. According to the Law of Large Numbers, as the number of repetitions increase, the proportion $\hat{p}_n$ of occurrences converge to the probability $p$ of that event.
+
+
+### Problem 2: Basic Simulation
+
+Suppose that a biased coin is tossed 5 times; the coin is weighted such that the probability of obtaining a heads is 0.6. 
+
+a) Calculate the probability of obtaining exactly 3 heads by hand (you can use `R` as a calculator)?
+
+$$ \text{Your Answer Here} $$
+
+
+The following code illustrates the use of \texttt{sample()} to simulate the results for one set of 5 coin tosses.
+
+```{r, eval = FALSE}
+#define parameters
+prob.heads = 
+number.tosses = 
+
+#simulate the coin tosses
+outcomes = sample(c(0, 1), size = number.tosses,
+                  prob = c(1 - prob.heads, prob.heads), replace = TRUE)
+
+#view the results
+table(outcomes)
+
+#store the results as a single number
+total.heads = sum(outcomes)
+total.heads
+```
+
+b) Using the information given about the experiment, set the parameters for \texttt{prob.heads} and \texttt{number.tosses} and run the code chunk.
+  
+  i. To generate \texttt{outcomes}, the \texttt{sample()} command draws from the values \texttt{0} and \texttt{1} with probabilites corresponding to those specified by the argument \texttt{prob}. Which number corresponds to heads, and which corresponds to tails?
+    
+\vspace{1cm}
+  
+  ii. Why is it necessary to specify `replace = TRUE`?
+    
+\vspace{1cm}
+
+    
+c) The following code uses a \texttt{for} loop to repeat (i.e., replicate) the experiment and record the results of each replicate. The term `k` is an index, used to keep track of each iteration of the loop; think of it as similar to the index of summation $k$ (or $i$) in sigma notation ($\sum_{k = 1}^n$). The value \texttt{num.replicates} is set to 200, specifying that the experiment is to be repeated 50 times.
+
+    The command `set.seed()` is used to draw a reproducible random sample; re-running the code with the same seed (2020) will produce the same set of outcomes.
+ 
+```{r, eval = FALSE}
+#define parameters
+prob.heads = 0.6
+number.tosses = 5
+number.replicates = 200
+
+#create empty vector to store outcomes
+outcomes = vector("numeric", number.replicates)
+
+#set the seed for a pseudo-random sample
+set.seed(139)
+
+#simulate the coin tosses
+for(k in 1:number.replicates){
+  
+  outcomes.replicate = sample(c(0, 1), size = number.tosses,
+                      prob = c(1 - prob.heads, prob.heads), replace = TRUE)
+  
+  outcomes[k] = sum(outcomes.replicate)
+}
+
+#view the results
+outcomes
+addmargins(table(outcomes))
+
+heads.3 = (outcomes == 3)
+table(heads.3)
+```
+
+d) Run the chunk. How many heads were observed in the fourth replicate of the experiment? Hint: look at \texttt{outcomes}.  From the simulation results, calculate an estimate of the probability of observing exactly 3 heads when the biased coin is tossed 5 times.
+    
+    \vspace{1cm}
+
+e) Modify the simulation to estimate the probability of observing at most 4 heads when the biased coin is tossed 10 times. Use as many replicates as needed for a stable estimate.
+    
+    \vspace{1cm}
+
+
+f)  Describe a more computationally efficient way to carry out the coin tossing simulations in this problem. Specifically, write a simulation that answers part (d) without using a `for` loop. 
+
+    \vspace{2cm}
+
+
+### Problem 3: Using \texttt{if} statements
+
+A bag contains 3 red and 3 white balls. Two balls are drawn from the bag, one at a time; the first ball is not replaced before the second ball is drawn.
+
+a) What is the probability of drawing a white ball on the first pick and a red on the second?
+
+\vspace{2cm}
+
+Run the following code to simulate the results for 20 sets of two draws from the bag, where red and white balls are represented by \texttt{R} and \texttt{W}, respectively.
+    
+```{r, eval = FALSE}
+#define parameters
+balls = rep(c("R", "W"), c(3,3))
+number.draws = 2
+replicates = 20
+
+set.seed(139) #reset the seed
+
+#create empty vector to store results
+successes = vector("numeric", replicates)
+
+#simulate the draws
+for(k in 1:replicates){
+  draw = sample(balls, size = number.draws, replace = FALSE)
+  
+  if(draw[1] == "W" & draw[2] == "R"){
+    successes[k] = 1
+  }
+}
+
+#view the results
+successes
+table(successes)
+```
+
+b) Explain the line of code used to generate \texttt{draw}.
+  
+    \vspace{2cm}
+  
+
+  
+An \texttt{if} statement has the basic structure \texttt{if( condition ) \{ statement \} }; if the condition is satisfied, then the statement will be carried out. The \texttt{if} statement in the loop records when a "success" occurs; if a particular replicate $k$ is considered a success, then a \texttt{1} is recorded as the $k^{th}$ element of the vector \texttt{successes}.
+  
+c) Examine the condition in the \texttt{if} statement and explain how the condition specifies when a success occurs. What is considered a success, in the context of this problem?
+
+\vspace{1cm}
+
+d) Set the number of replicates to 10,000 and re-run the simulation. What is the estimated probability of drawing a white ball on the first pick and a red on the second?
+    
+    \vspace{1cm}
+
+e) Using simulation, estimate the probability of drawing exactly one red ball. (Hint: The logical operator for "or" is the \texttt{|} symbol. Alternatively, think about using the \texttt{sum()} function.)
+
+    \vspace{2cm}
+
+### Prob 4: Simulating the Central Limit Theorem 
+
+The Youth Risk Behavioral Surveillance System (YRBSS) is a yearly survey conducted by the US Centers for Disease Control to measure health-related activity in high-school aged youth. The dataset contains responses from the 13,583 participants in 2013. 
+
+Suppose the individuals in \texttt{yrbss} are treated as a target population; the goal of the simulation is to visualize the sampling distribution of point estimates of mean weight, $\overline{x}_{weight}$. 
+
+The following code takes a random sample of 10 individuals from \texttt{yrbss} and stores the subset as \texttt{yrbss.sample}. 
+
+```{r}
+#load the data
+yrbss = read.csv("data/yrbss.csv")
+
+#set parameters
+sample.size = 10
+
+#obtain random sample of row numbers
+set.seed(139)
+sample.rows = sample(1:nrow(yrbss), sample.size)
+
+#create yrbss.sample
+yrbss.sample = yrbss[sample.rows, ]
+mean(yrbss.sample$weight, na.rm=T)
+table(is.na(yrbss.sample$weight))
+```
+
+Based on the code, write a simulation to take 1,000 random samples of size 10 from \texttt{yrbss} and calculate the sample mean of each sample. Afterwards, plot a histogram of the sample means. Draw a blue line at the mean of sample means and a red line at the mean in \texttt{yrbss} (which is being treated as the population mean weight). 
+    
+```{r}
+#set parameters
+nsims <- 10^4
+sample.size <- 30
+
+#set seed
+set.seed(139)
+
+#create empty vector to store results
+resampled.means <- rep(NA, nsims)
+
+#calculate sample means
+for(llama in 1:nsims){
+  
+  sample.rows = sample(1:nrow(yrbss), sample.size)
+
+  #create yrbss.sample
+  yrbss.sample = yrbss[sample.rows, ]
+  resampled.means[llama] = mean(yrbss.sample$weight, na.rm=T) 
+}
+  
+#create histogram of sample means
+hist(resampled.means)
+# hist(yrbss$weight)
+
+#draw a blue line at the mean of sample means
+
+#draw a red line at the population mean weight in yrbss
+
+```
+
+a) Explore the effect of larger sample sizes by re-running the code for sample sizes of 25, 100, and 300. How does the distribution of sample means change as sample size increases? (Hint: Use the argument \texttt{xlim = c(lb,ub)} in \texttt{hist()} to keep the axis scale fixed.)
+    
+\vspace{1cm}
+    
+b) With the goal of making inference about a population mean in mind, what is the advantage of a larger sample size?
+    
+\vspace{1cm}
+    
+   
+<!---
+
+Hints: the command abline( ) may be useful, and remember the na.rm = TRUE optional argument when calculating means.
+
+--->
+
+
+
+
+### Problem 5: Probability distributions in \textsf{R}
+
+Detailed instructions for using the \textsf{R} functions for probability distributions are provided in the reference supplement, along with several examples. 
+
+Let $X_1,X_2, \dots, X_{15}$ be i.i.d. Normal r.v.s. with mean $\mu = 1$ and variance $\sigma^2 = 3^2 = 9$.  Let $S^2$ be the usual variance estimate: $S^2=\sum{(X_i-\bar{X})^2}/(n-1)$, and let $\hat{\sigma}^2$ be the estimate using $\mu$ in the calculation instead:  $\hat{\sigma}^2=\sum{(X_i-\mu)^2} /n$.  Write a simulation in R, using a `for` loop based on at least 10,000 iterations, to determine the following:
+
+
+a) That both estimators ($S^2$ and $\hat{\sigma}^2$) are unbiased.  
+
+```{r}
+set.seed(139)
+nsims=20000
+mu=1
+sigma=3
+n=15
+sigma2.hat=s2=rep(NA,nsims)
+
+for(i in 1:nsims){
+  # your code here: the function `rnorm` is needed
+}
+
+# your code here: determine empirical bias
+```
+
+\vspace{1cm}
+
+b) Provide a separate histogram for each of the two sampling distributions.  Which has lower spread?
+
+```{r}
+# your code here
+```
+
+\vspace{1cm}
+
+c) Which estimator is closer to the true value more often. 
+
+```{r}
+# your code here
+```
+
+\vspace{1cm}
+
+d) Are you sure your answers above are correct?  What could you do to be more certain?
+
+\vspace{1cm}
+
+e) Recall that the sampling distribution of $S^2$ is just a scaled $\chi^2_{n-1}$ (by a factor of $\sigma^2/(n-1)$.  Show that the quantiles of a $\chi^2_{n-1}$ distribution (using `qchisq(ppoints(nsims),df)`) match the empirical quantiles of our observed $S^2$ using a quantile-quantile plot (`qqplot`).  Interpret this plot (this [reference guide](https://data.library.virginia.edu/understanding-q-q-plots/) might help).
+
+```{r}
+# your code here
+```

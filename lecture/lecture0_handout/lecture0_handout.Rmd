@@ -1,0 +1,173 @@
+---
+title: "Lecture 0 Handout: Introduction to R"
+author: "Statistics 139 Team"
+date: "September 05, 2023"
+
+fontsize: 11pt
+geometry: margin=1in
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+urlcolor: blue
+---
+
+\begin{small}
+	
+	\textbf{Topics}
+	\begin{itemize}
+	  \item R, RStudio
+	  \item Data Collection, Data Wrangling, and Exploratory Data Analysis
+	  \item Hypothesis Testing and Confidence Interval Review
+	\end{itemize}
+	
+\end{small}
+
+The material in this lab corresponds to Lecture 0 notes.
+
+\vspace{0.5cm}
+
+Be sure to fill out the following survey (5 questions) before continuing in this lab:
+
+\url{https://bit.ly/lecturesurvey0}
+
+
+A survey was conducted of Stat 139 students and measured 5 variables (responses will be saved as 'stat139survey.csv'):
+
+- heartrate: beats per minute
+- exercise: the number of hours of vigorous exercise in a typical week
+- coffee: an indicator variable measuring whether respondent drank coffee that day
+- gender: male, female, non-binary, or other
+- class: freshman, sophomore, junior, senior, grad, or other
+
+```{r library}
+library(ggplot2)
+library(data.table)
+```
+
+
+#### Question 1.
+a) We are mainly interested in measuring heartrate from this survey. Perform a little exploratory data analysis (EDA) on this variable.  Provide a basic visual and calculate summary statistics. 
+
+```{r 1a}
+#read in the data
+surveydata = read.csv("./data/stat139survey.csv")
+
+# select for relevant columns
+df <- surveydata[, 3:7]
+
+# rename variables
+colnames(df) <- c("bpm", "exercise", "coffee", "gender", "class")
+
+# change to datatable
+df <- as.data.table(df)
+
+# provide a visual and calculate summary statistics 
+hist(df$bpm)
+
+# faceted histogram by gender
+ggplot(df[df$bpm < 200, ], aes(bpm)) + 
+  geom_histogram() + 
+  facet_wrap(~gender)
+
+# calculate mean
+mean(df$bpm)
+```  
+
+```{r 1a cleaning}
+# look at structure
+str(df)
+
+# look at values of exercise var
+table(df$exercise)
+
+# wrangle inappropriate values
+df[exercise == "4-6", exercise := "5"]
+df <- df[exercise != "-2"]
+
+# looks good!
+table(df$exercise)
+
+# recode to numeric
+df[, exercise := as.numeric(exercise)]
+```
+
+
+Recall the classic formula for the confidence interval for a population mean: 
+  
+  $$ \bar{x}\pm t^*\left(\frac{s}{\sqrt{n}}\right)$$
+  
+  b) Use this data set to provide a 95\% confidence interval for the true mean heartrate of all Harvard students. 
+\vspace{3cm}
+
+```{r, eval = FALSE}
+# calculate sample statistics: sample size, sample mean, and sample sd
+sample_size <- nrow(df)
+sample_mean <- mean(df$bpm)
+sample_sd <- sd(df$bpm)
+
+# pull off the correct quantile from the t-distribution
+# qt(p, df)
+p <- 0.975
+degree_f <- sample_size - 1
+quantile <- qt(p, degree_f)
+
+# calculate the appropriate confidence interval
+sample_mean - quantile * sample_sd/(sqrt(sample_size))
+sample_mean + quantile * sample_sd/(sqrt(sample_size))
+```  
+
+  c) Interpret the confidence interval you calculated in the previous part.
+
+\vspace{2.5cm}
+
+  d) The true mean resting heartrate for adults in the US is reported to be 70 beats per minute.  How does the calculated confidence interval compare to the US population?  What can you conclude?
+
+\vspace{3cm}
+
+The calculated confidence interval aligns with what is reported to be the avg heartrate for adults in the US
+
+  e) What assumptions are needed for the confidence interval to be exact?  To be approximately correct?
+
+\vspace{3cm}
+
+  f) Do you trust the inferences above?  Why or why not?
+
+\newpage
+
+#### Question 2.
+Harvard reports that 49.5\% of undergraduate students at the college are male. 
+
+  a) What proportion of undergraduate students in this survey are male?
+  
+\vspace{4cm}
+
+```{r}
+mean(df$gender == "Male")
+```
+
+   
+  b) Write down the formula for the confidence interval for a population proportion.  Calculate this interval from the data.
+  
+\vspace{3cm}
+
+```{r 2b, include=F}
+prop <- 0.495
+# z_star <- 
+```
+
+  
+  c) What is a reasonable target population for this survey?  What can you conclude from the confidence interval above?
+   
+\vspace{3cm}
+
+  d) What assumptions are needed for the confidence interval in part (b) to be reasonable?  Is it ever exact?  Why or why not?
+   
+\vspace{3cm}    
+#### Question 3.
+
+What other interesting questions could be answered with this data set?  Perform some exploratory analyses (both visually and statistically) to investigate these questions.
+
+\vspace{3cm}
+
