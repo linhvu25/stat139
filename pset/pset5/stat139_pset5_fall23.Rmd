@@ -23,15 +23,51 @@ output: pdf_document
 
 Let $X \sim \text{Unif}(a,b)$.  Feel free to use results from the *Stat 110 Distribution Sheet* as seen on the midterm exam. 
 
+```{r 1}
+set.seed(139)
+a = -0.5
+b = 0.5
+x = runif(10^6, a, b)
+x2 = x^2
+cov(x, x2)
+
+(a+b)*(a-b)^2/12
+```
+
+
 (a) Determine the covariance between $X$ and $X^2$.
 
+\textcolor{blue}{Using the formula $Cov(X,Y) = E(XY)-E(X)E(Y)$, we get:
+$$Cov(X,X^2) = E(X^3) - E(X)E(X^2)$$}
+
+\textcolor{blue}{Find $E(X^2)$ using LOTUS: $E(X^2) = \int_{a}^{b}X^2\frac{1}{b-a}dX = \frac{b^3-a^3}{3(b-a)}$}
+
+\textcolor{blue}{Find $E(X^3)$ using LOTUS:
+$E(X^3) = \int_{a}^{b}X^3\frac{1}{b-a}dX = \frac{b^4-a^4}{4(b-a)}$}
+
+\textcolor{blue}{Combining everything, we get:
+$$Cov(X,X^2) = \frac{b^4-a^4}{4(b-a)} - \frac{a+b}{2}\frac{b^3-a^3}{3(b-a)}$$
+$$=\frac{3(b^2-a^2)(b^2+a^2)-2(a+b)(b^3-a^3)}{12(b-a)}$$
+Dividing both the numerator and denominator by $b-a$, we get:
+$$=\frac{3(a+b)(b^2+a^2) - 2(a+b)(a^2+ab+b^2)}{12}$$
+$$=\frac{(a+b)(3a^2+3b^2-2a^2-2ab-2b^2)}{12}$$
+$$=\frac{(a+b)(a-b)^2}{12}$$}
+
 (b) Assume $b-a=1$ (so that the variability of $X$ is fixed).  For what values of $a$ (and $b$) will this covariance be zero?  When will this covariance be large (and positive)?  When will it be negative (and large in magnitude)?  What does this mean for where the distribution of $X$ is centered in each case?
+
+\textcolor{blue}{Using results from part (a), we know that the covariance in this case is $\frac{a+b}{12}$}
+
+\textcolor{blue}{The covariance is 0 when $a+b=0$. And since $b-a=1$, we find that $a=-0.5$, $b=0.5$.}
+
+\textcolor{blue}{The covariance is large and positive when $a+b$ is large and positive (i.e. a and b are both large and 1 unit apart). Similarly, the covariance is negative and large in magnitude when $a+b$ is negative and large in magnitude (i.e. a and b are both negative and large in magnitude). When $X$ is centered at a negative value far from 0, the covariance is very negative, and if the center is positive and far from 0, the covariance is large and positive.}
 
 (c) What are the implications of the results in (b) for a quadratic regression model (when $X$ and $X^2$ are both used as predictors)? Is this phenomenon specific to the Uniform distribution?
 
 *Note: do not be afraid to check your answers empirically using R.
 
-\vspace{0.2in}
+\textcolor{blue}{Because $X$ and $X^2$ very rarely have covariance of 0 (i.e. not at all correlated), when $X$ and $X^2$ are both used as predictors, we face potential issues of multicollinearity. As a result, we need to be careful about including many polynomial terms. This phenomenon is not specific to the Uniform distirbution.???}
+
+\newpage
 
 
 
@@ -59,16 +95,74 @@ The file 'pregnancydata.csv' includes several variables to model the birthweight
 
 (a) Fit a regression model to predict weight from country and use the `relevel` command to make the "Other" group the reference group (call this \textbf{Model 1}).  Interpret the results and provide a visual to support your conclusions.  
 
+```{r 2a}
+pregnancy <- read.csv("data/pregnancydata.csv")
+pregnancy$country = relevel(as.factor(pregnancy$country), "Other")
+
+mod1 <- lm(weight~country, pregnancy)
+summary(mod1)
+
+x = c("Other", "Can", "UK", "US")
+yhat = predict(mod1, new=data.frame(country=x))
+plot(weight~country, pregnancy)
+lines(yhat~x,col="red",lwd=3)
+#???
+```
+
+\textcolor{blue}{The intercept means that babies born in other countries weigh `r round(mod1$coefficients[1],3)` ounces on average. The other slope estimates mean the difference between average weigh of babies born in Canada, UK, US and those born in other countries. Specifically, compared to babies born in other countries, babies born in Canada weigh `r round(mod1$coefficients[2],3)` ounce more; babies born in the UK weigh `r round(mod1$coefficients[3],3)` ounce more; babies born in the US weigh `r round(-mod1$coefficients[4],3)` ounce less.}
+
+\textcolor{blue}{The side-by-side boxplot shows that babies in Canada weigh slightly more on average, and babies in the US weigh slightly less on average.}
+
 (b) Build a $3^{rd}$ order polynomial regression model to predict weight from `pregnancylength` (call this **Model 2**). Interpret the output and provide a visual to support the results of the model.  
+
+```{r 2b}
+mod2 <- lm(weight~poly(pregnancylength, 3, raw=T), pregnancy)
+summary(mod2)
+
+x = min(pregnancy$pregnancylength):max(pregnancy$pregnancylength)
+yhat = predict(mod2, new=data.frame(pregnancylength=x))
+plot(weight~pregnancylength, pregnancy)
+lines(yhat~x,col="red",lwd=3)
+```
+
+\textcolor{blue}{$\hat{\beta_0}$: when length of the pregnancy is 0, the baby weighs `r round(mod2$coefficients[1],3)` ounces on average.}
+
+\textcolor{blue}{$\hat{\beta_1}$: when length of the pregnancy is 0, the baby's weight changes  `r round(mod2$coefficients[1],3)` ounces on average.???}
+
 
 (c) Use **Model 2** to estimate the probability that a baby will weigh less than 7 pounds (112 ounces) when born on day 280. 
 
+```{r 2c, eval=F}
+#???
+new.data=data.frame(pregnancylength=280)
+predict(mod2, type="response")
+```
+
+
 (d) It is of medical interest to determine at what gestational age a developing fetus is gaining weight the fastest.  Use **Model 2** to estimate this *period of fastest growth*.
+
+\textcolor{blue}{From model 2, we know that the line of best fit is 
+$$\hat{weight} = 517 -7.86 \cdot length +3.65(10)^{-2} \cdot length^2 - 5.02(10)^{-5} \cdot length^3$$
+We take the 2nd derivative with respect to length to find the period of fastest growth
+$$2(3.65)(10)^{-2}-6(5.02)(10)^{-5}  \cdot length = 0$$
+Solving for length gives us $length = 242.36$, meaning that the period of fastest growth is estimated as day 242 according to model 2.}
 
 (e) Fit a LOESS model (call this **Model 3**) to predict weight from `pregnancylength` (use a smaller span of 0.3).   Provide a visual to support the results of the model.  How does this model compare to **Model 2** in its prediction accuracy?
 
+The LOESS model seems to have higher accuracy because it captures the true trend of baby's weight: it increases as the pregnancy progresses and perhaps plateaus/decreases if the pregnancy is abnormally long. On the other hand, the polynomial regression model has a weird/unrealistic curve that starts high and decreases over time before increasing at around day 150 (in reality, babies born prematurely do not weigh that much, and baby's weight increases over time)
 
-\vspace{0.2in}
+```{r 2e}
+mod3 <- loess(weight~pregnancylength, pregnancy, span=0.3)
+
+x=min(pregnancy$pregnancylength):max(pregnancy$pregnancylength)
+yhat=predict(mod3, new=data.frame(pregnancylength=x))
+
+plot(weight~pregnancylength, pregnancy, col=rgb(0.5, 0.5, 0.5, 0.2))
+lines(yhat~x,col="red",lwd=4)
+```
+
+
+\newpage
 
 
 **Problem 3.** 
