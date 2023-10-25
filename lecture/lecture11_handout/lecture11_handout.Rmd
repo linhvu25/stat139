@@ -1,0 +1,199 @@
+---
+title: "Categorical Predictors and Interactions"
+author: "Lecture 11 Handout"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    #includes:
+    #  in_header: ../../pset_header.tex
+    fig_width: 5
+    fig_height: 3.5
+---
+
+\begin{small}
+
+\textbf{Topics}
+\begin{itemize}
+\item Categorical Predictors
+\item Extra-sums-of-squares (ESS) $F$-test
+\item Interaction Terms
+\end{itemize}
+
+\end{small}
+
+The material in this handout corresponds to the Lecture 11 Notes.
+
+
+\vspace{0.2cm}
+
+In this lab we will be using the 'movies17.csv' data set to investigate the use of categorical variables and interaction terms in regression.  This data set contains several measurements for many of the mainstream movies from 2017.  We will use this data set to answer the following questions:
+
+1. How does movie revenue relate to the production cost of movies?
+
+2. Which of the major studios has the most grossing revenue?
+
+3. Which studio takes advantage of production cost the most efficiently? 
+
+\vspace{0.2cm}
+
+Variables useful for today's handout include (there are many more in the data set):
+
+  - \texttt{totalgross}: the total domestic gross revenue for the movie in the US (in US \$).
+   
+  - \texttt{budget}: the total production cost of the movie (in US \$).
+  
+  - \texttt{studio}: the studio that produced the movie.  6 categories: Fox, Paramount, Sony, Universal, WarnerBros, and Other.
+  
+  - \texttt{sequel}: a binary variable to indicate whether the movie is a sequel or part of a franchise of movies.
+  
+  - \texttt{month}: a categorical variable for the month when the movie was released.
+
+\vspace{0.2cm}
+
+#### Question 1: Explorations
+
+  a) Begin by changing the scale on the financial measurements from dollars to millions of dollars (divide by 1000000).  Why might this be a better choice?
+  
+```{r}
+# read in the data set and transform data
+movies = read.csv("data/movies17.csv")
+```
+
+\vspace{2cm}
+
+  b) Investigate the distribution of movies across studios.  What do you notice?
+
+```{r}
+# visualize and/or summarize across groups
+
+```
+
+\vspace{2cm}
+  
+  c) Investigate the distributions of each of the financial variables and describe what you see.  Should you transform any of these variables?
+
+```{r}
+# look at distributions
+
+```
+
+\vspace{2cm}
+  
+
+  
+#### Question 2: Basic Modeling
+
+  a) Fit a linear model to predict \texttt{log(totalgross)} from \texttt{log(budget)} and provide a visual to support this model's results.  Interpret the results.
+
+```{r}
+# fit a model and interpret
+```
+
+\vspace{2cm}
+  
+  b) Change the 'order' of the categories for the variable studio so that the 'other' group is the reference group (the \texttt{relevel} command may be useful).  Why might this be a reasonable choice?
+  
+```{r}
+# use relevel
+```
+
+\vspace{2cm}
+
+  c) Fit a linear model to predict \texttt{log(totalgross)} from \texttt{studio} and provide a visual to support this model's results.  Interpret the results.
+  
+```{r}
+# fit a model and visualize
+```
+
+\vspace{2cm}
+
+  d) Fit a linear model to predict \texttt{log(totalgross)} from \texttt{month} and provide a visual to support this model's results.  Interpret the results.
+  
+```{r}
+# fit a model and visualize
+```
+
+\vspace{2cm}
+
+  e) Fit a linear model to predict \texttt{log(totalgross)} from \texttt{sequel} and provide a visual to support this model's results.  Interpret the results.
+  
+```{r}
+# fit a model and visualize
+```
+
+\vspace{2cm}
+  
+  f) Compare the residuals (both visually and quantitatively) from the model in part (a) across the various movie studios.  Interpret the results.
+
+```{r}
+# compare residuals across studios
+```
+
+\vspace{2cm}
+  
+  g) Fit a linear model to predict \texttt{log(totalgross)} from \texttt{studio} and \texttt{log(budget)}.  Interpret the results and \underline{describe} what a visual to illustrate the model results would look like.
+
+```{r}
+# fit a model and visualize
+```
+
+\vspace{2cm}
+  
+  h) How do the previous two parts agree?  In what ways are they different? Hint: what does model in part (g) take into account that the approach in part (f) does not?
+
+
+\vspace{2cm}
+ 
+
+
+
+  
+#### Question 3: Interactions
+
+  a) Within the subset of 'other' studios, fit a regression model to predict \texttt{log(totalgross)} from \texttt{log(budget)}.  Calculate this same model but for movies from the 'Fox' studio only.
+
+```{r}
+# fit 2 models
+```
+
+\vspace{2cm}
+
+  b) Perform an appropriate test to determine whether the slopes in the two subgroup models in the previous part are equal or not.
+
+```{r}
+# perform a test
+```
+
+ 
+  c) Fit a regression model to predict \texttt{log(totalgross)} from \texttt{log(budget)}, \texttt{studio}, and the interaction between the two (for all studios in the original data set), and briefly interpret the results.
+
+```{r}
+# fit a model and interpret
+
+```
+
+\vspace{2cm}
+ 
+  d) Create a plot to illustrate the results from the previous part.
+ 
+```{r}
+# create a visual
+```
+
+\vspace{2cm}
+ 
+  e) Compare the results of the model in the previous part(s) to the models calculated within the subsets in part (a).  Do they agree?  Which approach is preferred?  Why?
+
+\vspace{2cm}
+  
+  f) Formally test whether the inclusion of the interaction terms contribute a statistically significant amount to $R^2$.
+ 
+```{r}
+# perform a test
+```
+
+

@@ -1,0 +1,227 @@
+---
+title: "Question 4: Interactions"
+author: "Lab 7 Handout Solutions"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+
+```{r}
+#load the data
+prevend = read.csv("data/prevend.csv")
+
+prevend$Education.Factor = factor(prevend$Education, levels = 0:3,
+                          labels = c("Primary", "LowSec", "HighSec", "Univ"))
+```
+
+### Question 4: Interactions
+
+This problem investigates the relationship between RFFT score (\texttt{RFFT}), age (\texttt{Age}), and diabetes (\texttt{DM}).
+
+a) Fit a linear model that regresses RFFT score on age and diabetes status. 
+
+```{r}
+#fit model
+model.statin.dm = lm(RFFT ~ Age + DM, data = prevend)
+summary(model.statin.dm)
+```
+
+  i. According to the model, how does the average RFFT score for a 60-year-old compare to that of a 50-year-old, if both have diabetes?
+        
+  \textcolor{blue}{The change in mean RFFT score can be determined directly from the coefficient for age, if diabetes status is held constant. An increase in one year of age is associated with a 1.13 point decrease in mean RFFT score; thus, an increase in ten years of age is associated with a 11.3 point decrease in mean RFFT score.}
+   
+        
+  ii. According to the model, how does the average RFFT score for a 60-year-old compare to that of a 50-year-old, if both do not have diabetes?
+        
+  \textcolor{blue}{This calculation does not differ from the one in part i. According to the model, the relationship between RFFT score and age is consistent whether diabetes status is held constant at 'diabetic' or at 'non-diabetic'.}
+
+
+         
+b) Fit a linear model for RFFT score from age, diabetes status, and the interaction term between age and diabetes status.
+
+```{r}
+#fit interaction model
+model.statin.dm.int = lm(RFFT ~ Age*as.factor(DM), data = prevend)
+summary(model.statin.dm.int)
+```
+
+  i. Write the overall estimated model equation.
+        
+  \color{blue}
+  $I$ indicates the indicator function below:
+  
+  \[\widehat{RFFT} = 132.43 - 1.158(Age) - 48.52(I_{DM=1}) + 0.634(Age \times I_{DM=1}) \]
+            
+  \color{black}
+             
+  ii. Simplify the model equation for diabetics. Simplify the model equation for non-diabetics.
+        
+ 
+  \color{blue}
+  
+  \begin{align*}
+  \widehat{RFFT} =& 132.43 - 1.158(Age) - 48.52(I_{DM=1}) + 0.634(Age \times I_{DM=1}) \\
+  =& 132.43 - 1.158(Age) - 48.52(1) + 0.634(Age \times 1) \\
+  =& (132.43 - 48.52) + (-1.158 + 0.634)(Age)\\
+  =& 83.91 - 0.524(Age)
+  \end{align*}
+        
+  \begin{align*}
+  \widehat{RFFT} =& 132.43 - 1.158(Age) - 48.52(I_{DM=1}) + 0.634(Age \times I_{DM=1}) \\
+  =& 132.43 - 1.158(Age) - 48.52(0) + 0.634(Age \times 0) \\
+  =& 132.43 - 1.158(Age)\\
+  \end{align*}
+
+\color{black}
+        
+  iii. How does fitting an interaction term change the model? Specifically, how do the interpretations from parts a) i. and ii. change when the model has an interaction term?
+
+  \textcolor{blue}{Fitting an interaction term allows for the association between RFFT score and age to be different between diabetics and non-diabetics. In this model, it is possible to make predictions based on the observed trend that the association between RFFT score and age is less negative for diabetics than for non-diabetics.}
+
+        
+c) Fit a model to predict RFFT score from age, educational attainment, and the interaction between the two.  Formally test whether the interaction term(s) provide a statistically significant improvement in prediction accuracy as measured by $R^2$ (you will need to fit a second model). Create a plot for the interaction model and summarize the model results.
+
+
+  \textcolor{blue}{There is a negative association between RFFT score and age for each level of educational attainment. In the plot below, primary school is represented as blue, lower secondary school as red, higher secondary school as green, and university as orange. From the ESS $F$-test, there is evidence that the interaction terms contribute to the model.}
+    
+  \textcolor{blue}{The slope for primary education is not significantly different from 0. Interestingly, the negative association between cognitive score and age is stronger among the two groups with the highest level of educational attainment (higher secondary school and university).}
+
+```{r}
+#fit the model
+edu.interact = lm(RFFT ~ Education.Factor*Age, data = prevend)
+summary(edu.interact)
+
+#ESS F-Test
+edu.age = lm(RFFT ~ Education.Factor + Age, data = prevend)
+summary(edu.age)
+anova(edu.age, edu.interact)
+
+```
+
+```{r, fig.height = 6, fig.width = 8, fig.align = "center"}
+
+#create a plot
+primary = (prevend$Education.Factor == "Primary")
+lowsec = (prevend$Education.Factor == "LowSec")
+highsec = (prevend$Education.Factor == "HighSec")
+univ = (prevend$Education.Factor == "Univ")
+
+library(tidyverse)
+library(ggplot2)
+prevend %>% ggplot(mapping = aes(x=Age, y=RFFT, color=Education.Factor)) + 
+  geom_point(alpha=0.2) + 
+  scale_color_manual(values = c("royalblue", "firebrick","green4", "orange"))  + 
+  geom_abline( intercept=edu.interact$coef[1], slope = edu.interact$coef[5], linetype = "dashed", color = "royalblue", linewidth=1) + 
+  geom_abline( intercept=edu.interact$coef[1] + edu.interact$coef[2], slope = edu.interact$coef[5] + edu.interact$coef[6], linetype = "dashed", color = "firebrick", linewidth=1) + 
+  geom_abline( intercept=edu.interact$coef[1] + edu.interact$coef[3], slope = edu.interact$coef[5] + edu.interact$coef[7], linetype = "dashed", color = "green4", linewidth=1) + 
+  geom_abline( intercept=edu.interact$coef[1] + edu.interact$coef[4], slope = edu.interact$coef[5] + edu.interact$coef[8], linetype = "dashed", color = "orange", linewidth=1)
+  
+```
+
+
+```{r, echo=F, include=F}
+#or, alternatively in base R
+plot(RFFT[primary == TRUE] ~ Age[primary == TRUE], 
+     data = prevend, 
+     pch = 21, cex = 0.9, bg = "royalblue4", col = "royalblue",
+     xlab = "", ylab = "RFFT Score",
+     xlim = c(35, 85), ylim = c(10, 140))
+
+points(prevend$Age[lowsec == TRUE],
+     prevend$RFFT[lowsec == TRUE],
+     pch = 21,
+     cex = 0.9,
+     bg = "firebrick4",
+     col = "firebrick")
+points(prevend$Age[highsec == TRUE],
+     prevend$RFFT[highsec == TRUE],
+     pch = 21,
+     cex = 0.9,
+     bg = "green4",
+     col = "springgreen")
+points(prevend$Age[univ == TRUE],
+     prevend$RFFT[univ == TRUE],
+     pch = 21,
+     cex = 0.9,
+     bg = "darkorange4",
+     col = "darkorange")
+
+mtext("Age (yrs)", 1, 1.9)
+
+#plot regression lines
+abline(a = edu.interact$coef[1], b = edu.interact$coef[5], lty = 2, col = "royalblue4",
+       lwd = 2)
+abline(a = edu.interact$coef[1] + edu.interact$coef[2], 
+       b = edu.interact$coef[5] + edu.interact$coef[6], lty = 2, col = "firebrick4",
+       lwd = 2)
+abline(a = edu.interact$coef[1] + edu.interact$coef[3], 
+       b = edu.interact$coef[5] + edu.interact$coef[7], lty = 2, col = "green4",
+       lwd = 2)
+abline(a = edu.interact$coef[1] + edu.interact$coef[4], 
+       b = edu.interact$coef[5] + edu.interact$coef[8], lty = 2, col = "darkorange",
+       lwd = 2)
+```
+
+
+d) Visually assess the linearity assumption for the two models you used in the test in the previous part.  How do they compare?
+
+
+
+
+```{r,fig.show="hold",out.width="49%"}
+plot(edu.age,which=c(1,2))
+plot(edu.interact,which=c(1,2))
+```
+
+\textcolor{blue}{The QQ plots above show that the normality assumption is pretty similar in both models (no concerns).  The residual vs. fitted plots suggest that there is likely a little bit of non-constant variance in both models.  The non-linearity present in the non-interactive (aka, additive) model is potentially fixed in the model with interaction.  In the additive model, the residual scatterplot suggests that at low values of $\hat{y}$ (around 30-40), the points are mostly above the zero horizontal line: the residuals are more likely to be positive in this range, thus the observations are being underestimated.  This issue seems to go away in the interactive model.  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

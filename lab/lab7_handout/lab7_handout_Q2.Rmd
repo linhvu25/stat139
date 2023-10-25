@@ -1,0 +1,129 @@
+---
+title: "Categorical Predictors"
+author: "Lab 5 Handout Solutions"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+
+### Problem 2: Categorical predictors with multiple levels
+
+The Prevention of REnal and Vascular END-stage Disease (PREVEND) study took place between 2003 and 2006 in the Netherlands. Clinical and demographic data for the 4,095 participants are in the \texttt{prevend.csv} data set.
+
+Is RFFT score associated with educational attainment? The variable \texttt{Education} indicates the highest level of education that an individual completed: primary school (0), lower secondary school (1), higher secondary school (2), or university (3). 
+
+a) Add a variable to the \texttt{prevend} data frame that recodes \texttt{Education} as a factor variable. The original numeric version of the variable will be used in part (d).
+
+```{r}
+#load the data
+prevend = read.csv("data/prevend.csv")
+
+prevend$Education.Factor = factor(prevend$Education, levels = 0:3,
+                          labels = c("Primary", "LowSec", "HighSec", "Univ"))
+```
+
+
+b) Create a plot that shows the association between RFFT score and educational attainment. Describe what you see.
+
+\textcolor{blue}{A higher educational level is associated with higher median RFFT score.  The boxplots almost look like they incraese linearly from one group to the next.}
+    
+```{r, fig.width = 7, fig.height = 4}
+boxplot(prevend$RFFT ~ prevend$Education.Factor,
+        main = "RFFT Score by Education", xlab = "Educational Attainment",
+        ylab = "RFFT Score")
+```
+
+    
+c) Apply the ANOVA procedure to explore whether RFFT score is associated with educational attainment. For the purposes of part d), do not apply a correction for multiple testing.
+    
+\textcolor{blue}{There is sufficient evidence to reject the overall $F$-test and reject the alternative there is a difference in some linear combination of mean RFFT scores for these groups ($F=385.26,\ p<0.0001$ ). All pairwise tests are highly significant, supporting the conclusion that the population mean RFFT for each group is different. The observed data suggest that as education level increases, population mean RFFT score increases.}
+
+```{r}
+#omnibus F test
+model <- aov(RFFT ~ Education.Factor, data = prevend)
+anova(model)
+
+#pairwise tests
+pairwise.t.test(prevend$RFFT, prevend$Education.Factor, 
+                p.adj = "none")
+```
+
+d) Fit a linear model that regresses RFFT score on education level. 
+    
+  i. Fit the model using the factor version of \texttt{Education}. Interpret the coefficients, including the intercept. How do the values of the coefficients and associated $p$-values relate to the output from part c)?
+
+```{r}
+#means by group
+tapply(prevend$RFFT, prevend$Education.Factor, mean)    
+    
+#linear model, part i.
+summary(lm(RFFT ~ Education.Factor, data = prevend))
+
+```      
+  \textcolor{blue}{The intercept is the mean RFFT score for individuals who at most completed primary school (47.42). Each of the slope coefficients represents the change in mean RFFT score as compared to the baseline category, \texttt{Primary}. For \texttt{LowSec}, the mean RFFT score is 9.98 points higher; for \texttt{HighSec}, it is 23.59 points higher; for \texttt{Univ}, it is 35.26 points higher.}
+    
+  \textcolor{blue}{The $p$-values for the slope coefficients match the $p$-values in the first column of the pairwise $t$-test output; the regression compares all other groups with the baseline category, \texttt{Primary}. }
+      
+  ii. Fit the model using the numeric version of \texttt{Education}. How does the interpretation of this model differ from the interpretation of the model in part i.? Which model is preferable?
+
+```{r}
+#linear model, part ii.
+summary(lm(RFFT ~ Education, data = prevend))
+```
+
+\textcolor{blue}{This model assumes that the estimated change in mean RFFT score between each level is equal. That is, going from Primary to Lower Secondary has an equivalent change as going between Higher Secondary and University.  In general, a model where the categorical predictor is coded as a factor is preferable. For this particular setting, it is not detrimental to assume the equivalent step increase between levels; the difference in means between groups does seem roughly similar. Note, however, that blindly fitting the numeric variable can also lead to misinterpretation if the numeric codes do not correspond to the natural ordering of the factor level.}
+      
+  iii. Check the assumptions for the model in part i. Briefly comment on whether the assumptions seem reasonably satisfied.
+    
+```{r, fig.width = 8, fig.height = 4}
+
+#check assumptions
+par(mfrow = c(1, 2))
+edu.model = lm(RFFT ~ Education.Factor, data = prevend)
+plot(resid(edu.model) ~ fitted(edu.model), ylab = "Residuals", 
+     xlab = "Predicted RFFT Scores")
+abline(h = 0, col = "red", lty = 2)
+
+qqnorm(resid(edu.model))
+qqline(resid(edu.model))
+```
+
+ 
+\textcolor{blue}{Linearity is automatically satisfied for categorical predictors. Constant variability seems reasonable across groups. The Q-Q plot shows the residuals are approximately normally distributed, with only slight deviations in the tails.}
+       
+       
+e) Is there evidence that mean RFFT score varies across levels of educational attainment? Perform a formal hypothesis test.
+    
+\textcolor{blue}{Test the null hypothesis $H_0: \beta_1 = \beta_2 = \beta_3$ against the alternative that at least one $\beta_j \neq 0$. It yields the same $F$-statistic as the ANOVA (F=385.26, with $p < 2e-16$. There is sufficient evidence to reject the null hypothesis and conclude that mean RFFT score varies across levels of educational attainment.}
+      
+\newpage    
+    
+f) Let's consider two nested models for predicting RFFT score. The variables of interest are statin use (\texttt{Statin}), age (\texttt{Age}), and educational attainment (\texttt{Education.Factor}).
+
+  - Model 1: statin use, age
+  - Model 2, statin use, age, educational attainment
+  
+Formally compare the two models to assess whether educational attainment is a useful predictor. 
+
+```{r}
+#fit the models
+model1 <- lm(RFFT ~ Statin + Age, data = prevend)
+model2 <- lm(RFFT ~ Statin + Age + Education.Factor, data = prevend)
+
+#view the summary output
+summary(model1)
+summary(model2)
+
+#run ESS F-test
+anova(model1, model2)
+```
+
+\textcolor{blue}{The $p$-value of the ESS $F$-test comparing the nested models, one without educational attainment and one with, is highly significant ($F=207.68,\ p<0.001$). There is evidence that including educational attainment in the model to predict RFFT score is worthwhile. There is a substantial increase in proportion of variation (in RFFT) explained from adding educational attainment.}
+
