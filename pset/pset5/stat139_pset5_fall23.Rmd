@@ -18,12 +18,16 @@ output: pdf_document
 		
 \end{small}
 	
+```{r setup}
+library(tidyverse)
+```
+
 
 **Problem 1.** 
 
 Let $X \sim \text{Unif}(a,b)$.  Feel free to use results from the *Stat 110 Distribution Sheet* as seen on the midterm exam. 
 
-```{r 1}
+```{r 1a}
 set.seed(139)
 a = -0.5
 b = 0.5
@@ -65,7 +69,19 @@ $$=\frac{(a+b)(a-b)^2}{12}$$}
 
 *Note: do not be afraid to check your answers empirically using R.
 
-\textcolor{blue}{Because $X$ and $X^2$ very rarely have covariance of 0 (i.e. not at all correlated), when $X$ and $X^2$ are both used as predictors, we face potential issues of multicollinearity. As a result, we need to be careful about including many polynomial terms. This phenomenon is not specific to the Uniform distirbution.???}
+\textcolor{blue}{Because $X$ and $X^2$ very rarely have covariance of 0 (i.e. not at all correlated), when $X$ and $X^2$ are both used as predictors, we face potential issues of multicollinearity. As a result, we need to be careful about including many polynomial terms. This phenomenon is not specific to the Uniform distirbution (see R chunk below).}
+
+```{r 1c}
+set.seed(139)
+x = rnorm(10^6, 2, 4)
+x2 = x^2
+cov(x, x2)
+
+x = rpois(10^6, 4)
+x2 = x^2
+cov(x, x2)
+```
+
 
 \newpage
 
@@ -103,13 +119,11 @@ mod1 <- lm(weight~country, pregnancy)
 summary(mod1)
 
 x = c("Other", "Can", "UK", "US")
-yhat = predict(mod1, new=data.frame(country=x))
+predict(mod1, new=data.frame(country=x))
 plot(weight~country, pregnancy)
-lines(yhat~x,col="red",lwd=3)
-#???
 ```
 
-\textcolor{blue}{The intercept means that babies born in other countries weigh `r round(mod1$coefficients[1],3)` ounces on average. The other slope estimates mean the difference between average weigh of babies born in Canada, UK, US and those born in other countries. Specifically, compared to babies born in other countries, babies born in Canada weigh `r round(mod1$coefficients[2],3)` ounce more; babies born in the UK weigh `r round(mod1$coefficients[3],3)` ounce more; babies born in the US weigh `r round(-mod1$coefficients[4],3)` ounce less.}
+\textcolor{blue}{The intercept means that babies born in other countries weigh `r round(mod1$coefficients[1],3)` ounces on average. The other slope estimates mean the difference between average weigh of babies born in Canada, UK, US and those born in other countries. Specifically, compared to babies born in other countries, babies born in Canada weigh `r round(mod1$coefficients[2],3)` ounce more (this difference is significant due to small p-value); babies born in the UK weigh `r round(mod1$coefficients[3],3)` ounce more (this difference is not significant); babies born in the US weigh `r round(-mod1$coefficients[4],3)` ounce less (this difference is significant).}
 
 \textcolor{blue}{The side-by-side boxplot shows that babies in Canada weigh slightly more on average, and babies in the US weigh slightly less on average.}
 
@@ -132,10 +146,18 @@ lines(yhat~x,col="red",lwd=3)
 
 (c) Use **Model 2** to estimate the probability that a baby will weigh less than 7 pounds (112 ounces) when born on day 280. 
 
-```{r 2c, eval=F}
-#???
+\textcolor{blue}{The probability that a baby will weigh less than 7 pounds when born on day 280 is 0.218. We got the standard error from the model output in part (b), and we used the formula $t^* = \frac{fit-observed}{SE} = \frac{123.96-112}{15.33} = 0.78$. We then used the \texttt{pt} function to get the probability of getting a value more extreme than $t^*$ from the $t$ distribution.}
+
+```{r 2c}
+# predict
 new.data=data.frame(pregnancylength=280)
-predict(mod2, type="response")
+bound <- predict(mod2, new.data, interval="prediction")
+bound
+
+# calculate probability
+SE = 15.33
+t_star = (bound[1]-112)/SE
+1-pt(t_star, df=9061)
 ```
 
 
@@ -149,10 +171,11 @@ Solving for length gives us $length = 242.36$, meaning that the period of fastes
 
 (e) Fit a LOESS model (call this **Model 3**) to predict weight from `pregnancylength` (use a smaller span of 0.3).   Provide a visual to support the results of the model.  How does this model compare to **Model 2** in its prediction accuracy?
 
-The LOESS model seems to have higher accuracy because it captures the true trend of baby's weight: it increases as the pregnancy progresses and perhaps plateaus/decreases if the pregnancy is abnormally long. On the other hand, the polynomial regression model has a weird/unrealistic curve that starts high and decreases over time before increasing at around day 150 (in reality, babies born prematurely do not weigh that much, and baby's weight increases over time)
+\textcolor{blue}{The LOESS model seems to have higher accuracy because it captures the true trend of baby's weight: it increases as the pregnancy progresses and perhaps plateaus/decreases if the pregnancy is abnormally long. On the other hand, the polynomial regression model has a weird/unrealistic curve that starts high and decreases over time before increasing at around day 150 (in reality, babies born prematurely do not weigh that much, and baby's weight increases over time)}
 
 ```{r 2e}
 mod3 <- loess(weight~pregnancylength, pregnancy, span=0.3)
+summary(mod3)
 
 x=min(pregnancy$pregnancylength):max(pregnancy$pregnancylength)
 yhat=predict(mod3, new=data.frame(pregnancylength=x))
@@ -172,7 +195,8 @@ In this problem, we will attempt to investigate whether the COVID-19 related res
 Note: a state of emergency was declared in Massachusetts on March 10, 2020, and restrictions on non-essential businesses, schools, and MBTA service were mainly put into effect on March 17,2020 (see this [City of Boston article](https://www.boston.gov/departments/public-health-commission/coronavirus-timeline) for the timeline). 
 
 The \textsf{R} chunk below reads in the data and includes some code to create a variable called `dayinyear` in the `bpd` data frame that counts the number of days into the year, starting with 0 for Jan 1 (similar to what was done on the previous pset).
-```{r}
+
+```{r 3 setup}
 bpd = read.csv('data/bpd.csv')
 
 jan1_19 = as.Date("1/1/19",format="%m/%d/%y")
@@ -188,17 +212,91 @@ bpd$dayinyear[bpd$year==2021] =
 
 (a) Create a binary/dummy variable (call it `restrictions`) to indicate whether that day falls under the time period of state of emergency or restricted business operations in the city of Boston (all dates between and including March 10, 2020 and Friday, May 28, 2020).  How many days fall in this time period in the data set?
 
+\textcolor{blue}{80 days in the data set fall in this time period.}
+
+```{r 3a}
+start = as.Date("03/10/2020", format="%m/%d/%y") - jan1_20
+end = as.Date("05/28/2020", format="%m/%d/%y") - jan1_20
+
+bpd$restrictions <- 1*(bpd$dayinyear >= start & bpd$dayinyear <= end & bpd$year == 2020)
+
+sum(bpd$dayinyear >= start & bpd$dayinyear <= end & bpd$year == 2020)
+```
+
+
 (b) Calculate the mean number of daily incident reports filed by the BPD during the restriction orders in Boston.  Separately calculate the mean number of daily incident reports for a comparison group with the same calendar dates in the pre-pandemic portion of the data. Use these two groups to calculate a reasonable 95% confidence interval for the effect of COVID-19 restrictions on the reporting of crime in the BPD (based on a simple 2-group comparison method and not linear regression).
+
+```{r 3b}
+bpd20 <- bpd[bpd$year == 2020 & bpd$dayinyear >= start & bpd$dayinyear <= end, c("year", "count")]
+bpd19 <- bpd[bpd$year == 2019 & bpd$dayinyear >= start & bpd$dayinyear <= end, c("year", "count")]
+
+t.test(count~year, rbind(bpd20, bpd19))
+```
+
+\textcolor{blue}{The mean of daily incident reports during restriction period in 2020 is 159.125, and that value for 2019 is 264.7. Conducting the 2-sample $t$ test, we get a 95\% CI for the effect of restrictions on reporting of crime of (95.96, 115.19). This means that COVID restrictions tend to correlate with a decrease of between 95.96 and 115.19 daily crimes reported.}
 
 (c) Fit a  linear regression model to predict `count` from `maxtemp` and `restrictions` (call it **model1**), and print out the `summary` results. Briefly interpret the coefficient estimates and use this model to estimate the effect of COVID-19 restrictions on the reporting of crime in the BPD (with 95% confidence).
 
+```{r 3c}
+model1 <- lm(count ~ maxtemp + restrictions, bpd)
+summary(model1)
+
+confint(model1, "restrictions", type="confidence")
+```
+
+\textcolor{blue}{$\hat{\beta_0}$: when \texttt{maxtemp} is 0F and when there is no restriction, the expected number of daily reported crimes is `r round(coefficients(model1)[1],2)` in Boston.}
+
+\textcolor{blue}{$\hat{\beta_1}$: the expected number of daily reported crimes increases by  `r round(coefficients(model1)[2],2)` as \texttt{maxtemp} increases by 1F, if we consider the same type of day (restriction vs non-restriction).}
+
+\textcolor{blue}{$\hat{\beta_2}$: \texttt{maxtemp} is held constant, the difference between expected number of daily reported crimes between restriction and non-restriction day is `r round(-coefficients(model1)[3],2)` (restriction days have fewer crimes).}
+
+\textcolor{blue}{All the coefficients are significant according to the model output}
+
+\textcolor{blue}{The 95\% confidence interval for the effect of COVID-19 restrictions is (-70.34, -51.02). Since 0 is not included in the interval, this means that restriction rules decrease the number of daily crimes in Boston.}
+
 (d) Fit a  linear regression model to predict `count` from `maxtemp`, `restrictions`, `dayinyear` and all 2-way interactions between these 3 predictors (call it **model2**), and print out the `summary` results.  Interpret what this model says about the relationship between crime reporting in the BPD and COVID-19 restrictions. Compute an estimate and 95\% CI for the effect of restrictions on the 100th day of the year, assuming a \texttt{maxtemp} of 60 degrees.  Also estimate `count` (and provide a 95\% CI) on the 91st day of the year in 2020, assuming the temperature was 50 degrees. Do the same for 2019 and compare the difference.
+
+```{r 3d}
+model2 <- lm(count~(maxtemp + restrictions + dayinyear)^2, bpd)
+summary(model2)
+
+# bpd$dayinyear[bpd$year==2020] =
+#   as.Date(bpd$date,format="%m/%d/%y")[bpd$year==2020] - jan1_20 
+# 
+# day100 <- as.difftime(91)
+# 
+# new.data1 <- data.frame(dayinyear=100, maxtemp=60, restrictions=0)
+# predict(model2, new.data1, interval="prediction")
+# confint(model2, "count", dayinyear=91, year)
+```
+
+\textcolor{blue}{???}
 
 (e) Perform a formal hypothesis test to determine whether **model2** performs significantly better at predicting `count` than **model1**.
 
+```{r 3e}
+anova(model1, model2)
+```
+
+\textcolor{blue}{We conducted an SSE F-test to compare the 2 models because they have similar structures and one is nested within the other. The F-statistic is 1.044, with df = 4. The p-value is 0.3834, so we can reject the null hypothesis and conclude that model 2 performs better than model 1.}
+
 (f) Investigate the assumptions for **model2**. Be sure to include and reference useful visuals.
 
+```{r 3f}
+plot(model2, which=c(1,2))
+```
+
+\textcolor{blue}{The assumptions are: (1) Indepedence: the observations are not independent because if there was a period of unrest (eg. protests), the daily count of crime on neighboring days would be similar. (2) Linearity: this assumption is met because the points are similarly above the horizontal line and below the horizontal line in the 1st plot. (3) Normality: this assumption is met because the standardized residuals more or less follow the theoretical quantiles in the QQ plot. (4) Homoskedasticity: this seems to be violated because the variance of residuals increases as the fitted values increase.}
+
 (g) Determine which 4 dates **model2** did the worst job at predicting `count`. Can you think of a reason why any of these dates do not follow the relationships in this model? (all 4 are explainable with a little Google searching)
+
+```{r 3g}
+bpd$resids <- abs(model2$residuals)
+bpd %>%
+  slice_max(n=4, order_by=resids)
+```
+
+\textcolor{blue}{???}
 
 (h) Write a 200-300 word summary addressing whether there is evidence that COVID-19 reduced the amount of crime in Boston.  Be sure to reference the results above (specifically, which approach you think was most reasonable) and mention any biases or confounders that may be present in this relationship.
  
@@ -218,6 +316,26 @@ where $\varepsilon_i \sim N(0,\sigma^2=0.1^2)$ and independent, and $X_i$ are sa
 For each iteration, fit 4 different polynomial models (use the raw form in R): (i) $3^{rd}$ order, (ii) $5^{th}$ order, (iii) $7^{th}$ order, and (iv) $=9^{th}$ order.  Save the $\beta_1$ coefficient (linear term) estimates for each of the 4 models for each of the 1,000 iteration (presumably a 1000x4 matrix) and either separately save all 10 $\beta$ coefficient estimates for the $9^{th}$ order or the model objects themselves (in a list).
 
 Evaluate which model is *best* in each iteration two ways: (i) based on sequential ESS $F$-tests (you will perform 3 of them in each iteration) and (ii) out-of-sample mean squared error (based on a single test set of $n_{test}=1000$ generated from the same data generating process as the regular $n=50$ set of observations...this does not need to be recreated in each iteration).
+
+```{r 4, eval=F}
+nsims <- 1000
+n <- 50
+x <- runif(n, 0, 6)
+epsilon <- rnorm(n,0,0.1)
+y <- sin(x) + epsilon
+
+beta11 <- 
+
+for(i in 1:nsims){
+  m1 <- lm(y~poly(x,3,raw=T))
+  m2 <- lm(y~poly(x,5,raw=T))
+  m3 <- lm(y~poly(x,7,raw=T))
+  m4 <- lm(y~poly(x,9,raw=T))
+  
+  anova(m3, m4)[2,6]
+}
+```
+
 
 (a) Based on the ESS $F$-tests, how often is each of the 4 models considered the best?  Based on out-of-sample mean squared error?
 
