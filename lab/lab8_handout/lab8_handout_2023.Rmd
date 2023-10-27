@@ -1,0 +1,263 @@
+---
+title: "Modeling Considerations"
+author: "Lab 8 Handout Solutions"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+\begin{small}
+
+\textbf{Topics}
+\begin{itemize}
+\item Inferential Modeling
+\item Predictive Modeling
+  \begin{itemize}
+  \item Sequential Variable Selection
+  \item Comparing Models (with and without CV)
+  \end{itemize}
+\end{itemize}
+
+\end{small}
+
+
+### Background Information
+
+This handout will step through a case study examining evidence for ethnic discrimination in the amount of financial support offered by the State of California to individuals with developmental disabilities. Although an initial look at the data suggested an association between expenditures and ethnicity (specifically between Hispanics and White non-Hispanics), further exploratory analysis suggested that age is a confounding variable for the relationship.
+
+The data in \texttt{dds.discr} represent a random sample of 1,000 individuals who receive financial support from the California Department of Developmental Services (out of a total population of 250,000). The following variables are included in the dataset.
+
+\footnotesize
+  - \texttt{ID}: consumer ID number
+  - \texttt{Age.Cohort}: age group, where \texttt{1} refers to 0 - 5 years, \texttt{2} refers to 51+ years, \texttt{3} refers to 13 - 17 years, \texttt{4} refers to 18 - 21 years, \texttt{5} refers to 22 - 50 years, and \texttt{6} refers to 6 - 12 years.
+  - \texttt{Age}: age in years
+  - \texttt{Gender}: gender, recorded as \texttt{1} for female and \texttt{2} for male
+  - \texttt{Expenditures}: annual expenditure in dollars
+  - \texttt{Ethnicity}: ethnicity, recorded as either \texttt{1} for American Indian, \texttt{2} for Asian, \texttt{3} for Black, \texttt{4} for Hispanic, \texttt{5} for Multi Race, \texttt{6} for Native Hawaiian, \texttt{7} for Other, and \texttt{8} for White not Hispanic.
+
+\normalsize
+In this handout, we return to the data with the tools of inference and regression modeling to conduct a formal analysis:
+
+\begin{center}
+\textit{After adjusting for age as a confounder, is there evidence that the mean amount of financial support differs between Hispanics and White non-Hispanics?}
+\end{center}
+
+#### Problem 1: Initial Model Fitting
+
+Run the code below to read in the data set and create a subset of the data to include only observations from Hispanic and White non-Hispanic consumers.  Use this for all future analyses.
+
+\scriptsize
+
+```{r setup}
+#load the data
+dds = read.csv("data/dds_discr.csv")
+
+#subset the data
+dds.subset = dds[dds$ethnicity == "Hispanic" | 
+                 dds$ethnicity == "White not Hispanic", ]
+
+#how about with tidyverse?
+library(tidyverse)
+```
+
+\normalsize
+a) Fit a multiple regression model predicting expenditures from ethnicity and age. Interpret the ethnicity coefficient and investigate the model assumptions with residual plots.
+
+
+```{r 1a}
+mod1 <- lm(expenditures~ethnicity+age,dds.subset)
+summary(mod1)
+```
+
+
+```{r 1b, fig.height = 4, fig.align = 'center', , message = F}
+#look at residuals versus fitted values
+plot(mod1,which=c(1,2))
+```
+
+
+
+
+
+c) Investigate the association of expenditures and age for three separate age groups with scatter plots: under 18 years, between 18 and 21 years (inclusive), and above 21 years. Use color to differentiate between Hispanics and White non-Hispanics and explain what you see.
+
+
+```{r 1c, fig.width = 8, fig.height = 6, message = FALSE,}
+
+```
+
+  
+d) Now fit three separate linear regression models predicting expenditures from age and ethnicity, considering only the individuals in a particular age group at a time: under 18 years, between 18 and 21 years (inclusive), and above 21 years. Comment on these models based on the diagnostics? 
+
+```{r 1d, fig.width = 8, fig.height = 4.75,}
+mod2 <- lm(expenditures~ethnicity+age,dds.subset[dds.subset$age<18,])
+summary(mod2)$coef
+
+mod3 <- lm(expenditures~ethnicity+age,dds.subset[dds.subset$age>=18 & dds.subset$age<=21,])
+summary(mod3)$coef
+
+mod4 <- lm(expenditures~ethnicity+age,dds.subset[dds.subset$age>21,])
+summary(mod4)$coef
+```
+
+  
+
+e) Discuss the inference from these models - is ethnicity associated with expenditure?
+
+```{r 1e}
+#summary output
+
+```
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#### Problem 2: Refining the Model
+
+a) One strategy for improving the model is to explicitly include a predictor that contains information about which age group an observation belongs to, since the relationship between expenditures and age is distinctly different between age groups. To this end, create a categorical variable called \texttt{age.grp} that has levels under 18 years of age, 18 - 21 years of age (inclusive), and over 21 years of age.
+    
+```{r 2a}
+dds.subset <- dds.subset %>% 
+  mutate(age.grp = case_when(age < 18 ~ "under 18",
+                             age >=18 & age <= 21 ~ "18 to 21",
+                             age > 21 ~ "over 21"))
+``` 
+
+b) Fit a model predicting expenditures from ethnicity, age, and age group. Interpret the model coefficients.
+    
+```{r 2b}
+mod5 <- lm(expenditures~(ethnicity+age)*age.grp, dds.subset)
+summary(mod5)
+```
+
+\textcolor{blue}{}
+
+c) Check the associated residual plots. What are some potential issues with the model fit in the previous subpart?
+  
+```{r 2c, fig.show='hold',out.width="49%"}
+plot(mod5, which=c(1,2))
+```
+
+
+     
+d) Do you think applying a log transformation to expenditures might address the observed issues from the model in the previous part? Try it and look at the residual plots. Does it seem preferable to continue with this model or return to the previous model? Explain your answer.
+
+```{r, fig.show='hold',out.width="49%"}
+
+```  
+
+
+
+e) Formally test whether ethnicity is an important predictor in \texttt{model}.
+
+```{r}
+
+```
+
+
+
+
+
+#### Problem 3: Building a Best Model
+
+Now that out inferential modeling is done, let's see if we can improve predictions based on the complete set of predictors.
+
+Below we split into into train and test for you before performing prediction modeling techniques (`n.train = 600`).
+
+```{r 3 setup}
+set.seed(139); n = nrow(dds.subset); n.train = 600
+rows.train = sample(1:n,n.train,replace=F)
+dds.train = dds.subset[rows.train,]
+dds.test = dds.subset[-rows.train,]
+dim(dds.train); dim(dds.test)
+```
+
+a) For this problem, let's first build a model including the variables `age.cohort + age + gender + ethnicity` as a main effects only model.
+
+```{r 3a}
+# create model.main
+model.main <- lm(expenditures~age.cohort + age + gender + ethnicity, dds.train)
+summary(model.main)
+```
+
+b) Now create a model including the variables `age.cohort + age + gender + ethnicity` as main effect and the interactions between them all.
+
+```{r 3b}
+# create model.interact
+model.interact <- lm(expenditures~(age.cohort + age + gender + ethnicity)^2, dds.train)
+summary(model.interact)
+```
+
+c) Now build a stepwise (combined directions) sequential model starting from the `model.main` and considering a lower bound of the intercept only model and the upper bound of `model.interact`.
+
+```{r 3c}
+# create model.step, the next line should get you started, plus in for ___
+model.step <- step(model.main, scope=c(lower=formula(expenditures~1),
+                         upper=model.interact),
+                direction="both",
+                trace=2,
+                k=log(n)) # BIC criterion
+formula(model.step)
+```
+
+d) Compare the 3 models above using 5 different metrics: $R^2$ in train, $R^2$ in test, adjusted-$R^2$, AIC, and the ESS $F$-test (only $R^2$ should be considered in the test set).  Which model wins in each case?
+
+```{r 3d}
+# calculate the 5 metrics above for each of the 3 models 
+# (ESS F-test should only be calculated twice)
+
+r.sq = function(y,yhat){
+  SST = sum((y-mean(y))^2)
+  SSE = sum((y-yhat)^2)
+  return(1-SSE/SST)  
+}
+
+
+```
+
+\textcolor{blue}{`model.step` is favored by the results on the test set and the F test.  $R^2$ on the train set should be ignored (it will always be higher for larger models) since there are better measures considered here.}
+
+e) Perform a 'leave $p$ out' cross-validation (keeping 500 in each "train" set) to compare the 3 models in this problem.  Which model wins out using MSE as the error metric in the validation sets?  Was this expected based on the previous part?
+
+```{r 3e}
+# this is a helper function for you.
+# be careful using this in the presence of missingness (there is not here)
+MSE = function(model,newdata,y){
+   yhat=predict(model,newdata=newdata)
+   MSE = sum((y-yhat)^2)/nrow(newdata)
+   return(MSE)
+}
+
+```
+
+
+f) What challenges/issues may arise if cross-validation was used on the entire dds data set?  How could these be handled in order to not "throw away" data?
+
+
+```{r 3f}
+dim(dds)
+dim(dds.subset)
+table(dds$ethnicity)
+```
+
+
+
