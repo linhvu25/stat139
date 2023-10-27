@@ -1,0 +1,9 @@
+Model Variables,Residual Sum of Squares,Degrees of Freedom
+None ,8100,27
+x1,6240,26
+x2,5980,26
+x3,6760,26
+x1x2,5500,25
+x1x3,5250,25
+x2x3,5750,25
+x1x2x3,5160,24
