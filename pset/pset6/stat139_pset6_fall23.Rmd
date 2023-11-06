@@ -1,6 +1,6 @@
 ---
 title: "Problem Set 6: Prediction Modeling"
-author: "Statistics 139 Teaching Staff"
+author: "Linh Vu (Collab: Brice Laurent)"
 date: "Due: November 03, 2023"
 geometry: margin=2.45cm
 output: pdf_document
@@ -50,9 +50,10 @@ colnames(abc) <- c("var", "RSS", "df")
 n <- 28
 
 # calculate
-abc$sigma.sq = abc$RSS/n
-abc$AIC = n*log(abc$RSS/n) + 2*(n-abc$df-1)
-abc$BIC = n*log(abc$RSS/n) + (n-abc$df-1)*log(n)
+# df = n-p-1 --> n-df = p+1
+abc$sigma.sq = abc$RSS/abc$df
+abc$AIC = n*log(abc$RSS/n) + (n-abc$df)*2
+abc$BIC = n*log(abc$RSS/n) + (n-abc$df)*log(n)
 
 abc
 ```
@@ -60,12 +61,25 @@ abc
 
 (b) Summarize which model(s) is/are ranked best for each of the 3 statistics from part (a).
 
-\textcolor{blue}{Model that includes $X_1$, $X_2$, $X_3$ has the lowest $\sigma^2$. Model that includes $X_1$ and $X_3$ has the lowest AIC (and is thus ranked best by this metric). Model that includes $X_1$ and $X_3$ has the lowest BIC (and is thus ranked best by this metric).}
+\textcolor{blue}{Model that includes $X_1$ and $X_3$ has the lowest $\sigma^2$, lowest AIC, and lowest BIC and is thus ranked best by all three metrics.}
 
 (c) Using the residual sum of squares, find the model indicated by forward selection.  Start with the model 'None', and identify the single-variable model that has the smallest residual sum of squares, then perform an extra-sum-of-squares $F$-test to determine if that variable is significant.  If it is, continue with the 2 predictor model.  Continue until no more significant predictors can be added.  Is this procedure guaranteed to find the "best" model (that is, where a determination of "best" is based on residual sum of squares)? 
 
-\textcolor{blue}{???}
+```{r 1c}
+# ESS F-test comparing `none` and `x2`
+fstat.1 <- ((abc$RSS[1] - abc$RSS[3])/1)/(abc$RSS[3]/(abc$df[3]))
+1 - pf(fstat.1, 1, abc$df[3])
 
+# ESS F-test comparing `x2` and `x1x2`
+fstat.2 <- ((abc$RSS[3] - abc$RSS[5])/1)/(abc$RSS[5]/(abc$df[5]))
+1 - pf(fstat.2, 1, abc$df[5])
+```
+
+\textcolor{blue}{Starting with the model \texttt{None}, we proceed with the model \texttt{x2} because it is the single-variable model with the smallest RSS. Since the F test statistic is `r round(fstat.1,3)` and the p-value is 0.005, we reject the null hypothesis and conclude that adding $X_2$ significantly improves the model.}
+
+\textcolor{blue}{Now we proceed with model \texttt{x2}. We compare it with model \texttt{x1x2} because it is the double-variable model with the smallest RSS. Since the F test statistic is `r round(fstat.2,3)` and the p-value is 0.152, we retain the null hypothesis and conclude that adding $X_1$ does not improve the model, and we stop with model \texttt{x2}.}
+
+\textcolor{blue}{In part (a), we found that the model with the lowest RSS is \texttt{x1x2x3}, so this method doesn't guarantee that we end up with the "best" model. This is because forward selection can get us stuck with a locally optimal model (and perhaps few predictors) without considering all possible models, and the lowest-RSS method generally gives us the model with the highest number of predictors.}
 
 \vspace{0.2in}
 
@@ -125,14 +139,15 @@ Descriptions of the variables are included below.
 ```{r 2a}
 nhanes <- read.csv("data/nhanes.csv")
 
-cols <- c("jobtype", "smoke", "active", "diabetes", "alcohol", "female", "married", "educ", "race", "foreignborn")
+cols <- c("jobtype", "smoke", "active", "diabetes", "alcohol", 
+          "female", "married", "educ", "race", "foreignborn")
 
 for(i in 1:length(cols)){
   nhanes[[cols[i]]] <- as.factor(nhanes[[cols[i]]])
 }
 
 # we should log transform the outcome var
-hist(log(nhanes$systolic), breaks=20)
+hist(nhanes$systolic, breaks=20)
 nhanes$t.systolic <- log(nhanes$systolic)
 
 # peek
@@ -141,20 +156,16 @@ hist(nhanes$workhours)
 hist(nhanes$sleep)
 hist(nhanes$poverty)
 hist(nhanes$age)
-hist(log(nhanes$heartrate))
+hist(nhanes$heartrate)
 hist(nhanes$height)
-hist(log(nhanes$weight))
+hist(nhanes$weight)
 hist(nhanes$waist)
-hist(log(nhanes$bmi))
+hist(nhanes$bmi)
 
-# transform
-nhanes$t.heartrate <- log(nhanes$heartrate)
-nhanes$t.weight    <- log(nhanes$weight)
-nhanes$t.bmi       <- log(nhanes$bmi)
-
-df.nhanes <- subset(nhanes, select=c(cols, "workhours", "sleep", "poverty", "age", "height", "waist", "t.heartrate", "t.weight", "t.bmi", "t.systolic"))
+df.nhanes <- subset(nhanes, select=-c(systolic, id))
 ```
 
+\textcolor{blue}{I decided to log transform the response variable because the untransformed version is right-skewed. I also changed the categorical variables from numeric into factor variables.}
 
 (b) Fit a model with 'main effects' of all available predictors in their transformed states (call this \textbf{model1}). Your model should have 2332 degrees of freedom associated with the residuals (unless you used exotic transformations).  Identify significant predictors (ignoring multiple comparisons). 
 
@@ -162,7 +173,7 @@ df.nhanes <- subset(nhanes, select=c(cols, "workhours", "sleep", "poverty", "age
 model1 <- lm(t.systolic ~ ., df.nhanes)
 summary(model1)
 ```
-\textcolor{blue}{According to the model output summary above, the significant predictors include \texttt{female1} (being female), \texttt{married5} (never married), \texttt{educ5} (college graduate), \texttt{race4} (Black), \texttt{age}, and \texttt{t.heartrate}.}
+\textcolor{blue}{According to the model output summary above, the significant predictors include \texttt{female1} (being female), \texttt{age}, \texttt{married5} (never married), \texttt{educ5} (college graduate), \texttt{race4} (Black), and \texttt{heartrate}.}
 
 (c) Use the \textbf{backward} variable selection procedure based on AIC to build a prediction model for \texttt{systolic} (transformed appropriately), starting from a model with all main effects. You may find the function \texttt{step()} helpful. 
 There is no need to report the intermediate output of the \texttt{step()} function in your write-up, just report this model's coefficient estimates (not the full `summary` output), $R^2$, and AIC. Call the resulting model \textbf{model2}.
@@ -179,11 +190,12 @@ There is no need to report the intermediate output of the \texttt{step()} functi
 # build model
 model2 <- step(model1, direction="backward", trace=0)
 
-# pull outputs why is AIC negative????
+# pull outputs
 model2$coefficients
 summary(model2)$r.squared
 AIC(model2)
 ```
+\textcolor{blue}{The AIC of \texttt{model2} is `r AIC(model2)`, and the $R^2$ is `r round(summary(model2)$r.squared,3)`.}
 
 (d)  Next, run a \textbf{forward} variable selection procedure starting with \textbf{model2}, with the upper scope for the final model set to include all the two-way interaction terms for the variables in \textbf{model2}. Report this model's coefficient estimates, $R^2$, and AIC.  Call this \textbf{model3}.
 
@@ -192,7 +204,9 @@ Note: The predictors from \textbf{model2} can be printed in a list in R via the 
 ```{r 2d}
 # model2$terms[[3]]
 
-interactionModel <- lm(t.systolic ~ (female + married + educ + race + sleep + age + height + waist + t.heartrate)^2, df.nhanes)
+interactionModel <- lm(t.systolic ~ (sleep + female + age + married + educ + race 
+                                     + heartrate + height + waist + bmi)^2, 
+                       df.nhanes)
 
 model3 <- step(model2, 
      scope = list(upper = formula(interactionModel)), 
@@ -204,6 +218,7 @@ summary(model3)$r.squared
 AIC(model3)
 ```
 
+\textcolor{blue}{The AIC of \texttt{model2} is `r AIC(model3)`, and the $R^2$ is `r round(summary(model3)$r.squared,3)`.}
 
 (e) Finally, use a combined \textbf{stepwise} procedure to perform model selection. Start with a model with all main effects and specify the intercept-only model (\textbf{model0}) as a lower limit model and a full model including all two-way interactions of *all* possible predictor variables as the upper-limit as shown below (call this the **fullInteractionModel**).  Report this model's coefficient estimates, $R^2$, and AIC.  Call this \textbf{model4}.  Note, this may take a minute or two...the use of the code chunk option `cache=TRUE` can be helpful so you do not need to wait for this to run every time you want to knit the file into a pdf.
 
@@ -220,21 +235,44 @@ summary(model4)$r.squared
 AIC(model4)
 ```
       
+\textcolor{blue}{The AIC of \texttt{model4} is `r AIC(model4)`, and the $R^2$ is `r round(summary(model4)$r.squared,3)`.}
 
 (f) Select a best final model among 5 models based on their AICs: **model1** through **model4** and the **fullInteractionModel**.  Perform a brief model check of assumptions on your selected model. 
 
 ```{r 2f}
+# get AIC
 AIC(model1)
 AIC(model2)
 AIC(model3)
 AIC(model4)
 AIC(fullInteractionModel)
+
+# check assumptions
+plot(model4, which=c(1,2))
 ```
 
+\textcolor{blue}{The best model, which has the lowest AIC, is \texttt{model4}. In terms of assumptions, the linearity assumption is satisfied because the points are equally distributed above and below the horizontal line (per plot 1). The homoskedasticity assumption is also met; there doesn't seem to be any fanning/funneling pattern (per plot 1). The normality assumption is also met because the standardized quantiles of the residuals closely resemble the theoretical quantiles in the QQ plot. The independence assumption is met depending on the design of the study (eg. if subjects are related and if the condition is genetic-based, then the independence assumption might not be met).}
 
-(g) Use the model chosen in part (f) to interpret the association of systolic blood pressure with the variable \texttt{female}.  If \texttt{female} is not in your chosen model in any fashion, interpret what that means.
+(g) Use the model chosen in part (f) to interpret the association of systolic blood pressure with the variable \texttt{female}. If \texttt{female} is not in your chosen model in any fashion, interpret what that means.
 
-\textcolor{blue}{Model 4 performs the best because it has the lowest AIC. ???}
+\textcolor{blue}{In \texttt{model4}, the coefficient estimate for \texttt{female1} is -0.108. This means that holding all other predictors at 0, being female decreases the systolic blood pressure by 0.108 mm Hg compared to being male.}
+
+\textcolor{blue}{The coefficient estimate for \texttt{alcohol1:female1} is -0.0264. This means that holding all other interaction predictors (except for alcohol) at 0, when a person drinks, the difference in systolic blood pressure of an average female individual vs an average male individual is $-0.108-0.0264 = -0.1344$ mm Hg.}
+
+\textcolor{blue}{The coefficient estimate for \texttt{female1:age} is 0.00114. This means that holding all other interaction predictors (except for age) at 0, when age increases by 1, the difference in systolic blood pressure of an average female individual vs an average male individual becomes $-0.108 + 0.00114 = -0.10686$ mm Hg.}
+
+\textcolor{blue}{The coefficient estimate for \texttt{sleep:female1} is -0.00735. This means that holding all other interaction predictors (except for sleep) at 0, when hours of sleep increase by 1, the difference in systolic blood pressure of an average female individual vs an average male individual becomes $-0.108 - 0.00735 = -0.11535$ mm Hg.}
+
+\textcolor{blue}{The coefficient estimate for \texttt{female1:poverty} is -0.00444. This means that holding all other interaction predictors (except for poverty) at 0, when the poverty index increases by 1 unit (person becomes more well off), the difference in systolic blood pressure of an average female individual vs an average male individual becomes $-0.108 - 0.00444 = -0.11244$ mm Hg.}
+
+\textcolor{blue}{The coefficient estimate for \texttt{female1:waist} is 0.00254. This means that holding all other interaction predictors (except for waist) at 0, when the waist circumference increases by 1 cm, the difference in systolic blood pressure of an average female individual vs an average male individual becomes $-0.108 + 0.00254 = -0.10546$ mm Hg.}
+
+\textcolor{blue}{The mean difference between systolic blood pressure between female and male individuals is $-0.108 - 0.0264a + 0.001140b - 0.00735c - 0.00444d + 0.00254e$ mmHg, where (a, b, c, d, e) are the interaction terms between female 1 and (alcohol1, age, sleep, poverty, waist), respectively, while holding all the other coefficient estimates and interaction estimates constant. If we consider two average individuals who, say, both drink (alcohol=1), are ~42 years old, sleep ~7 hours a night, have a poverty index of ~2.8, and have a waist of ~38cm, and other factors being equal, the difference in systolic blood pressure between the female and male individual is -0.05 mmHg, per the calculation below (i.e. the male individual has higher systolic bp on average).}
+
+```{r 2g}
+-0.108 - 0.0264*(1) + 0.001140*mean(df.nhanes$age) - 0.00735*mean(df.nhanes$sleep) - 0.00444*mean(df.nhanes$poverty) + 0.00254*mean(df.nhanes$waist)
+```
+
 
 \newpage
 
@@ -257,7 +295,7 @@ In your solution, summarize your results as to which of the three models perform
 
 *Note*: if you were to actually then use the best model for future observations, you should always refit the chosen model on all the data sampled, not just one training set (here, of $n=2000$).
 
-```{r 3, warning = FALSE, message = FALSE}
+```{r 3, eval=F, warning = FALSE, message = FALSE}
 nsims <- 100
 rss <- data.frame(interactionModel = as.numeric(),
           m3 = as.numeric(),
@@ -269,7 +307,7 @@ t.rss <- data.frame(interactionModel = as.numeric(),
           best.model = as.numeric())
 
 for (i in 1:nsims){
-  
+
   train.ids = sample(1:nrow(df.nhanes), 2000)
   train = df.nhanes[train.ids,]
   test = df.nhanes[-train.ids,]
@@ -279,22 +317,27 @@ for (i in 1:nsims){
   fit3 = lm(formula(model4),           data=train)
   
   # transformed rss
-  t.rss[i,1] <- sum(test$t.systolic - predict(fit1, new=test))^2
-  t.rss[i,2] <- sum(test$t.systolic - predict(fit2, new=test))^2
-  t.rss[i,3] <- sum(test$t.systolic - predict(fit3, new=test))^2
+  t.rss[i,1] <- sum((test$t.systolic - predict(fit1, new=test))^2)
+  t.rss[i,2] <- sum((test$t.systolic - predict(fit2, new=test))^2)
+  t.rss[i,3] <- sum((test$t.systolic - predict(fit3, new=test))^2)
   t.rss[i,4] <- which.min(t.rss[i, ])
   
   # untransformed rss
-  rss[i,1] <- sum(exp(test$t.systolic) - exp(predict(fit1, new=test)))^2
-  rss[i,2] <- sum(exp(test$t.systolic) - exp(predict(fit2, new=test)))^2
-  rss[i,3] <- sum(exp(test$t.systolic) - exp(predict(fit3, new=test)))^2
+  rss[i,1] <- sum((exp(test$t.systolic) - exp(predict(fit1, new=test)))^2)
+  rss[i,2] <- sum((exp(test$t.systolic) - exp(predict(fit2, new=test)))^2)
+  rss[i,3] <- sum((exp(test$t.systolic) - exp(predict(fit3, new=test)))^2)
   rss[i,4] <- which.min(rss[i, ])
 }
+
+colMeans(t.rss)
+colMeans(rss)
 
 table(t.rss[,"best.model"])
 table(rss[,"best.model"])
 ```
+![](./data/3.png)
 
+\textcolor{blue}{The third choice of model (\texttt{model4}) performs the best most of the time in both predicting the log-transformed systolic blood pressure and the untransformed systolic blood pressure. We can see this based on the low mean RSS of model 3 (compared to that of other models) and the fact that model 3 has the lowest mean RSS the most number of times for predicting both log-transformed and untransformed systolic bp. This result is consistent with what I found in problem 2.}
 
 \newpage
 
@@ -318,32 +361,101 @@ For each of `nsims=200` iterations, perform $k$-fold cross-validation (for each 
 
 In the end for each choice of $k$, you should determine which of the 4 models above is *best* for 200 iterations.
 
-```{r 4a}
+```{r 4 setup, cache=T}
 # defining your own simulation function could be useful but not required.
 # but much sure your approach is working outside of the function before defining one
-# my.sim = function(n = 50, nsims = 200, k = c(2,5,25), seed = NA)
+# my.sim = function(n = 50, nsims = 200, k = c(2,10,25), seed = NA)
 
 # you simulation code here
+library(caret)
+nsims=200
 
-data <- rnorm(13, 0, 1)
-y <- rnorm(1, 1*data[1] + 3*data[2] + 9*data[3], 5)
+data <- data.frame(Y = as.numeric(),
+          Z1 = as.numeric(),
+          Z2 = as.numeric(),
+          Z3 = as.numeric(),
+          X1 = as.numeric(),
+          X2 = as.numeric(),
+          X3 = as.numeric(),
+          X4 = as.numeric(),
+          X5 = as.numeric(),
+          X6 = as.numeric(),
+          X7 = as.numeric(),
+          X8 = as.numeric(),
+          X9 = as.numeric(),
+          X10 = as.numeric())
 
+best.model <- rep(NA, nsims)
+
+findBest <- function(n, k){
+
+  for(i in 1:nsims){
+  
+    # generate predictors
+    for(j in 1:n){
+      data[j,2:14] <- rnorm(13, 0, 1)
+      data[j,"Y"] <- rnorm(1, 1*data[j,"Z1"] + 3*data[j,"Z2"] + 9*data[j,"Z3"], 5)
+    }
+      
+    # k fold cv
+    cv  <- trainControl(method="cv", number=k)
+    lm1 <- train(Y ~ Z3,           data=data, method="lm", trControl=cv)
+    lm2 <- train(Y ~ Z2 + Z3,      data=data, method="lm", trControl=cv)
+    lm3 <- train(Y ~ Z1 + Z2 + Z3, data=data, method="lm", trControl=cv)
+    lm4 <- train(Y ~ .,            data=data, method="lm", trControl=cv)
+    
+    # get rmse
+    rmse <- c(lm1$results$RMSE,
+              lm2$results$RMSE,
+              lm3$results$RMSE,
+              lm4$results$RMSE)
+    
+    best.model[i] <- which.min(rmse)
+  }
+  
+  return(best.model)
+}
 ```
 
 (a) How often is each model selected as best (as measured by average validation set squared error)?  Provide a 4 x 3 table that displays the number of times each model is chosen where the columns represent the choice of $k$ and the rows represent each model mentioned above.  Note: the columns should sum up to `nsims=200`.
 
+\textcolor{blue}{We see that across the 3 values of k, model 3 is the best the most number of times, closely followed by model 2. As k becomes larger, model 3 outperforms model 2 more frequently. Models 1 and 4 perform the best the least number of times.}
+
+```{r 4a, cache=T}
+k2  <- findBest(n=50, k=2)
+k10 <- findBest(n=50, k=10)
+k25 <- findBest(n=50, k=25)
+
+best50 <- data.frame("k2"  = c(sum(k2==1),  sum(k2==2),  sum(k2==3),  sum(k2==4)),
+                     "k10" = c(sum(k10==1), sum(k10==2), sum(k10==3), sum(k10==4)),
+                     "k25" = c(sum(k25==1), sum(k25==2), sum(k25==3), sum(k25==4)))
+rownames(best50) <- c("model1", "model2", "model3", "model4")
+best50
+```
+
 (b) Interpret the results: is there a clear winner for the choice of $k$ here?  How often is each cross-validation choosing the *correct* model?  Do they tend to favor the underfit or overfit models?  Explain.
+
+\textcolor{blue}{The clear winner is $k=25$, which gives us the most accurate result; in this scenario, model 3 (the correct model) performs the best most often, compared to other scenarios of different k values. $k=2$ chooses the correct model 48\% of the time, $k=10$ chooses the correct model 47\% of the time, and $k=25$ chooses the correct model 53.5\% of the time. Since we often get simpler models than more complex ones, we tend to underfit than overfit the data.}
 
 (c) Rerun the simulation above for $n=500$.  Provide the analogous 4 x 3 table to part (a) above.
 
-```{r 4c}
+```{r 4c, cache=T}
+k2c  <- findBest(n=500, k=2)
+k10c <- findBest(n=500, k=10)
+k25c <- findBest(n=500, k=25)
 
+best500 <- data.frame("k2"  = c(sum(k2c==1),  sum(k2c==2),  sum(k2c==3),  sum(k2c==4)),
+                      "k10" = c(sum(k10c==1), sum(k10c==2), sum(k10c==3), sum(k10c==4)),
+                      "k25" = c(sum(k25c==1), sum(k25c==2), sum(k25c==3), sum(k25c==4)))
+rownames(best500) <- c("model1", "model2", "model3", "model4")
+best500
 ```
 
 
 (d) Compare the results for the $n=50$ and $n=500$ cases.  Is there a clear winner for the choice of $k$ when $n=500$?  How does sample size affect the choice of the *underfit*, *correct*, and *overfit* models (in this context)?  Explain.
 
+\textcolor{blue}{There isn't a clear winner for the choice of $k$ when $n=500$; I think that both $k=10$ and $k=25$ give us similar results (although the selection method doesn't perform as well at $k=2$). When sample size is small, though, we get more underfit models a lot more often. In fact, when sample size is 50, model 2 and model 3 perform the best with similar frequencies, but model 3 performs the best most often by a wide margin when the sample size is 500.}
+
 (e) What is missing/lacking in this small simulation study?  How would you modify or extend this simulation to better *investigate the optimal choice of train-validation splitting ratios in a model comparison problem*?  Explain your choice(s) in up to 8 sentences (do not implement these changes!!!).
 
-
-
+\textcolor{blue}{We can vary the simulation a lot to study how different factors might impact the model outcome. For one, we can have the true predictors, useless variables, and response variable take on a different distribution other than Normal and see whether cross-validation tends to gives us overfit or underfit model, whether it can detect the true distribution of each predictor, what the optimal number of folds is. It can also be a simple change like keeping all the predictors as normally distributed but varying the variances so that they are not all standard normal. Another change we can make is to vary the number of true predictors vs useless variables: like in lecture, we can have different scenarios where we have a few useful predictors and lots of useless variables; many weak predictors; or no useful predictors. Moreover, we can also utilize LASSO and Ridge regression to shrink the coefficient estimates along with doing k-fold cross validations to find the useful predictors and appropriate models. Lastly, we can vary the types of model used; we can use polynomials or other fancier models instead of simple first-order predictors like in this problem.}
