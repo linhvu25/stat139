@@ -1,0 +1,210 @@
+---
+title: "Ridge and LASSO"
+author: "Lab 9 Handout"
+date: "Statistics 139"
+
+fontsize: 11pt
+geometry: margin=1in 
+
+output:
+  pdf_document:
+    fig_width: 5
+    fig_height: 3.5
+---
+
+
+\begin{small}
+	
+	\textbf{Topics}
+	\begin{itemize}
+	  \item Ridge and LASSO
+	  \item Tuning $\lambda$
+	  \item Comparing Prediction Models
+	\end{itemize}
+	
+\end{small}
+
+### Question 1: Data wrangling/cleaning and Initial Model 
+
+This lecture handout uses data from the Prevention of REnal and Vascular END-stage Disease (PREVEND) study, which was featured in previous labs and lectures. The documentation for the variables is stored in the `oibiostat` package and can be accessed through [Git](https://github.com/OI-Biostat/oi_biostat_data/tree/master/data).
+
+
+a) Load the data set and convert the categorical variables (with more than 2 classes) into factors. The variable `Ethnicity` is the self-reported ethnicity of the respondent: (0) Western European, (1) African, (2) Asian, and (3) Other.  `Gender` is 0 for males and 1 for females.  
+
+```{r 1a}
+prevend=read.csv("data/prevend.csv")
+summary(prevend)
+
+prevend$Ethnicity = as.factor(prevend$Ethnicity)
+prevend$Education = as.factor(prevend$Education)
+prevend$DM        = as.factor(prevend$DM)
+prevend$CVD       = as.factor(prevend$CVD)
+prevend$Smoking   = as.factor(prevend$Smoking)
+prevend$Statin    = as.factor(prevend$Statin)
+
+# summary(prevend$Ethnicity)
+```
+
+
+
+What is the best predictive model of RFFT score based on the data in \texttt{prevend}?  To do this, we'll have to do a little more data processing first.
+
+Run the code below to count the number of missing values in each variable (denoted by the value `-1` in this data set).
+
+```{r,eval=F}
+apply(prevend==(-1),2,sum)
+#apply(prevend=="-1",2,sum)
+```
+
+b) Drop any variables that have more missing values than observed values (use `data$variable = NULL`).  Convert any categorical variables with several levels to factors (if you have not done that already), remove any remaining rows with missing observations, and finally split into train-test with 2000 observations in the training set (use `set.seed(139)`). Use the training set for the rest of the analyses in this handout.
+
+
+```{r 1b}
+prevend$Days = NULL
+prevend$X = NULL
+
+prevend = prevend[apply(prevend==(-1),1,sum)==0,]
+
+set.seed(139)
+ids = sample(nrow(prevend),2000)
+prevend.train = prevend[ids,]
+prevend.test = prevend[-ids,]
+
+```
+
+
+c) Explore the data graphically and assess whether the response variable or any predictor variable(s) need to be transformed.
+
+```{r 1c}
+quants = prevend.train[,c(1,5:6,11:17,19)]
+prevend.scaled = apply(quants,2,scale)
+boxplot(prevend.scaled,cex.axis=0.5,las=2)
+```
+
+d) Fit an overly-expressed regression model (call it **complexModel**) that contains all main effects and 2-way interaction terms between all predictors.  How many predictors in total are in this model?
+
+```{r 1d}
+complexModel = lm(RFFT~.^2,data=prevend.train)
+length(complexModel$coef)
+table(is.na(complexModel$coef))
+which(is.na(complexModel$coef))
+summary(complexModel)
+summary(complexModel)$coef
+```
+
+e) Fit both a single ridge regression (**ridge1**) and a single LASSO regression model (**lasso1**) using `glmnet` with $\lambda = 1$ for each based on the **complexModel**.  Provide a visual to compare the resulting $\hat{\beta}$ coefficients for the 3 models fit so far.  It is OK if you look at just a subset of these predictors.
+
+```{r 1e}
+library(glmnet)
+
+X = model.matrix(complexModel)[,-1]
+dim(X)
+ridge1 = glmnet(X,prevend.train$RFFT,alpha=0,lambda=1)
+lasso1 = glmnet(X,prevend.train$RFFT,alpha=1,lambda=1)
+
+boxplot(complexModel$coef[-1],as.numeric(lasso1$beta), as.numeric(ridge1$beta),
+        ylim=c(-100,100))
+```
+
+f) Compare the coefficient estimates for these 3 models in text.  Explain why the results of this comparison make sense.
+
+
+g) Compare the accuracy of each of these models on the test set you created.  Which model performed best?  Which model performed worst?  What did you expect to find?
+
+```{r}
+yhat.lm = predict(complexModel,new=prevend.test)
+X.test = model.matrix(complexModel,data=prevend.test)[,-1]
+yhat.lasso1 = predict(lasso1,newx =X.test)
+yhat.ridge1 = predict(ridge1,newx =X.test)
+
+MSE = function(y,yhat){
+  return(mean((y-yhat)^2))
+}
+
+MSE(prevend.test$RFFT,yhat.lm)
+MSE(prevend.test$RFFT,yhat.lasso1)
+MSE(prevend.test$RFFT,yhat.ridge1)
+```
+
+\vspace{0.2in}
+
+### Question 2: Tuning $\lambda$ 
+
+In this question we will be using $k$-fold cross-validation via `cv.glmnet` on the training data to identify optimal $\lambda$ values, then calculate RMSE on the test data.
+
+a) Ridge regression:
+    
+   i. Using a $k$ of 5, perform $k$-fold cross validation with ridge regression to identify the value of $\lambda$ that produces the lowest mean RMSE based on the **complexModel**.  Label the resulting model **tunedRidge**.
+
+```{r}
+ridges = cv.glmnet(X,prevend.train$RFFT,alpha=0,nfolds=5,
+                   lambda=2^((-10:10)))
+plot(ridges)
+```
+
+   ii. Provide a visual to aid in the choice of optimal $\lambda$ in the previous part.
+
+   iii. From the optimal $\lambda$., calculate the RMSE on the test set. 
+```{r}
+names(ridges)
+ridges
+```
+
+b) LASSO:
+    
+   i. Using a $k$ of 5, perform $k$-fold cross validation with LASSO regression to identify the value of $\lambda$ that produces the lowest mean RMSE based on the **complexModel**.  Label the resulting model **tunedLasso**.
+
+   ii. Provide a visual to aid in the choice of optimal $\lambda$ in the previous part.
+
+   iii. From the optimal $\lambda$ from part i., calculate the RMSE on the test set. 
+        
+c) How do these well-tuned ridge and LASSO perform relative to the full **complexModel**? What do the results suggest about the nature of the variables in the data set for predicting RFFT score (e.g., relative number of strong versus weak predictors)?
+
+d) How could the LASSO and ridge models be improved to predict RFFT score in the data set?
+
+
+### Question 3: Model selection 
+
+We will be considering four nested models for predicting RFFT score (\texttt{RFFT}). The variables of interest are statin use (\texttt{Statin}), age (\texttt{Age}), educational attainment (\texttt{Education}), presence of diabetes (\texttt{DM}), and presence of cardiovascular disease (\texttt{CVD}).
+
+  - Model A: statin use (`Statin`), age  (`Age`)
+  - Model B: statin use, age, educational attainment  (`Education`)
+  - Model C: statin use, age, education, diabetes (`DM`)
+  - Model D: statin use, age, education, diabetes, cardiovascular disease (`CVD`) 
+
+
+
+a) Fit the models and look at the summary output. Calculate AIC and BIC for all four models. Which model is the best according to AIC? For BIC? Are the results what you would expect based on the summary output? Explain.
+
+<!---
+To calculate AIC of a model fit called 'model', use AIC(model).  BIC is similar
+--->
+
+
+
+
+**Sequential variable selection**
+
+
+b) Fit an initial model, **model1**, that has only main effects.
+
+c) Use backward selection from **model1** according to AIC and print the summary of the final model; name it **model2**.
+
+d) Use a combined stepwise procedure according to AIC, starting with **model1** and setting the intercept-only model as the lower-limit model and the full model with all main effects and all 2-way interaction terms from predictors in **model2** as the upper-limit model. Print the summary of the final model and name it **model3**.
+
+e) Compare the BIC and AIC for all three sequentially chosen models.
+
+f) Determine which of the three models performs best on \texttt{prevend.test} based on RMSE. How do these results compare to the well-tuned LASSO and ridge models?
+
+
+
+### Question 4: Cross-validation
+
+a) *Random subsets*. Using an 80-20 train-validation split over 100 iterations, determine which of the four models has the lowest average RMSE (over the validation sets):
+
+   i. **complexModel**
+   ii. **tunedRidge** 
+   iii. **tunedLasso** 
+   iv. the best sequentially chosen model (from **model1**, **model2**, and **model3**)
+   
+b) Why might it be reasonable to generally expect that RMSEs from the validation sets are lower than RMSEs from the test sets?  Is this the case here?
